@@ -24,6 +24,7 @@ This project simulates a simplified DNA sequencing workflow:
 ```
 pipeline/   # simulation scripts
 data/fasta/   # generated sequences (ignored)
+data/fastq/   # generated reads (ignored)
 reports/   # simulation reports (ignored)
 ```
 
