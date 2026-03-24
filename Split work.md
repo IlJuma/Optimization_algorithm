@@ -581,8 +581,11 @@ This gives you a **sparse graph** instead of evaluating every possible pair. Tha
 project/
 │
 ├── data/
+│   ├── fasta/
+│   ├── fastq/
+│
 ├── reports/
-├── scripts/
+├── pipeline/
 │   ├── 1_generate_chromosome.py
 │   ├── 2_fragment_chromosome.py
 │   ├── 3_simulate_illumina.py

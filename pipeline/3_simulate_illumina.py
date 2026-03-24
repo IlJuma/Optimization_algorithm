@@ -2,12 +2,12 @@ import random
 from typing import List, Tuple, Dict
 
 # =========================
-# PARAMETERS (EDIT HERE)
+# PARAMETERS
 # =========================
 
-INPUT_FASTA = "fasta/fragments.fasta"          # Output from script #2
-OUTPUT_FASTQ_R1 = "fasta/reads_R1.fastq"
-OUTPUT_FASTQ_R2 = "fasta/reads_R2.fastq"
+INPUT_FASTA = "data/fasta/fragments.fasta"          # Output from script #2
+OUTPUT_FASTQ_R1 = "data/fastq/reads_R1.fastq"
+OUTPUT_FASTQ_R2 = "data/fastq/reads_R2.fastq"
 OUTPUT_REPORT = "reports/sequencing_report.txt"
 
 SEED = 456

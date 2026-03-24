@@ -22,23 +22,23 @@ This project simulates a simplified DNA sequencing workflow:
 ## Structure
 
 ```
-scripts/   # simulation scripts
-fasta/     # generated sequences (ignored)
+pipeline/   # simulation scripts
+data/fasta/   # generated sequences (ignored)
 reports/   # simulation reports (ignored)
 ```
 
 ## Usage
 
-Run in order:
+Run the scripts in order; the first script initializes all required directories.
 
 ```
-python scripts/1_generate_chromosome.py
-python scripts/2_fragment_chromosome.py
-python scripts/3_simulate_illumina.py
+python pipeline/1_generate_chromosome.py
+python pipeline/2_fragment_chromosome.py
+python pipeline/3_simulate_illumina.py
 ```
 
 ## Notes
 
-* Output folders (`fasta/`, `reports/`) are created automatically
+* Output folders (`data/fasta/`, `data/fastq/`, `reports/`) are created automatically
 * All outputs are excluded from version control
 * Designed for testing genome reconstruction and assembly accuracy

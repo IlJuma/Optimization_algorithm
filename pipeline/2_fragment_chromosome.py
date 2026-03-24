@@ -2,17 +2,17 @@ import random
 from typing import List, Tuple, Dict
 
 # =========================
-# PARAMETERS (EDIT HERE)
+# PARAMETERS
 # =========================
 
-INPUT_FASTA = "fasta/simulated.fasta"         # Output from script #1
-OUTPUT_FASTA = "fasta/fragments.fasta"
+INPUT_FASTA = "data/fasta/simulated_chromosome.fasta"         # Output from script #1
+OUTPUT_FASTA = "data/fasta/fragments.fasta"
 OUTPUT_REPORT = "reports/fragments_report.txt"
 
 SEED = 123
 
 # Number of independent genome molecules to fragment
-N_GENOME_COPIES = 100
+N_GENOME_COPIES = 20
 
 # Random cut-site model
 MEAN_CUT_SPACING = 350

@@ -3,15 +3,15 @@ import os
 from typing import List, Optional
 
 # =========================
-# PARAMETERS (EDIT HERE)
+# PARAMETERS
 # =========================
 
-LENGTH = 1_000_000                  # Total sequence length
+LENGTH = 5000                       # Total sequence length
 SEED = 42                           # Random seed for reproducibility
 
 # Global / local GC control
 MEAN_GC_CONTENT = 0.50              # Mean GC across the whole sequence
-GC_WINDOW_SIZE = 10_000             # GC is assigned per window
+GC_WINDOW_SIZE = int(LENGTH / 20)   # GC is assigned per window
 GC_STDDEV = 0.08                    # Variation in GC between windows
 MIN_GC = 0.20                       # Clamp local GC to this minimum
 MAX_GC = 0.80                       # Clamp local GC to this maximum
@@ -20,9 +20,9 @@ MAX_GC = 0.80                       # Clamp local GC to this maximum
 MAX_HOMOPOLYMER = 10                # Max allowed homopolymer length (None to disable)
 
 # Output
-OUTPUT_FASTA = "fasta/simulated.fasta"
-FASTA_HEADER = "simulated_sequence"
-OUTPUT_REPORT = "reports/simulated_report.txt"
+OUTPUT_FASTA = "data/fasta/simulated_chromosome.fasta"
+FASTA_HEADER = "simulated_chromosome"
+OUTPUT_REPORT = "reports/simulated_chromosome_report.txt"
 
 
 # =========================
@@ -128,8 +128,9 @@ def write_report(
 def main():
     rng = random.Random(SEED)
 
-    # Create output folders
-    os.makedirs("fasta", exist_ok=True)
+    # Create all required output directories for the pipeline
+    os.makedirs("data/fasta", exist_ok=True)
+    os.makedirs("data/fastq", exist_ok=True)
     os.makedirs("reports", exist_ok=True)
 
     gc_profile = generate_gc_profile(

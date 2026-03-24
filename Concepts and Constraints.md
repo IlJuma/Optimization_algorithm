@@ -7,8 +7,9 @@ Here is your **clean, copy-pasteable Markdown version** with properly formatted 
 ## 1. Problem Statement
 
 Given a set of sequencing reads
+
 $$
-V = {1,\dots,n}
+V = \{1,\dots,n\}
 $$
 
 originating from **paired-end sequencing of multiple copies of a genome**, find an ordering (permutation)
@@ -25,16 +26,19 @@ that reconstructs the original genome as accurately as possible.
 - regions are **covered multiple times (coverage redundancy)**
 - reads come in **paired-end relationships**
 - paired reads originate from the **same DNA fragment** but:
-  - may be **separated by a gap**
-  - may be **bridged by other reads**
+  - may be separated by a gap
+  - may be bridged by other reads
 - fragment lengths are size-selected to:
-  $$
-  L_{\text{frag}} \in [250, 450] \text{ bp}
-  $$
+
+$$
+L_{\text{frag}} \in [250, 450]\ \text{bp}
+$$
+
 - read lengths are:
-  $$
-  L_{\text{read}} \le 150 \text{ bp}
-  $$
+
+$$
+L_{\text{read}} \le 150\ \text{bp}
+$$
 
 ---
 
@@ -70,7 +74,7 @@ For each adjacent pair $(i,j)$:
 ### (1) Minimum overlap
 
 $$
-\text{overlap}(i,j) \ge o_{\min}
+\operatorname{overlap}(i,j) \ge o_{\min}
 $$
 
 Ensures only plausible sequence adjacencies.
@@ -81,14 +85,14 @@ Ensures only plausible sequence adjacencies.
 
 Let:
 
-* $M(i,j)$ = observed mismatches
-* $p_k = 10^{-Q_k/10}$ = base error probability
-* $E(i,j) = \sum_{k \in \text{overlap}} p_k$ = expected mismatches over the overlapping region
+- $M(i,j)$ = observed mismatches
+- $p_k = 10^{-Q_k/10}$ = base error probability
+- $E(i,j) = \sum_{k \in \text{overlap}} p_k$ = expected mismatches over the overlapping region
 
 Constraint:
 
 $$
-M(i,j) \le \alpha \cdot E(i,j), \quad \alpha \approx 2\text{–}5
+M(i,j) \le \alpha \, E(i,j), \qquad \alpha \approx 2\text{--}5
 $$
 
 Ensures mismatches are consistent with sequencing error.
@@ -97,7 +101,7 @@ Ensures mismatches are consistent with sequencing error.
 
 ### (3) Paired-end distance constraint (IMPORTANT)
 
-Each read $i$ has a paired read $\text{pair}(i)$.
+Each read $i$ has a paired read $\operatorname{pair}(i)$.
 
 Paired reads:
 
@@ -106,26 +110,24 @@ Paired reads:
 - may have **other reads between them**
 - must satisfy a **distance constraint derived from fragment length and read length**
 
----
-
 #### Gap definition
 
 Let the gap between paired reads be:
 
 $$
-\text{gap}(i, \text{pair}(i)) = L_{\text{frag}} - L_{\text{R1}} - L_{\text{R2}}
+\operatorname{gap}(i,\operatorname{pair}(i)) = L_{\text{frag}} - L_{\text{R1}} - L_{\text{R2}}
 $$
 
 Given:
 
 $$
-L_{\text{frag}} \in [250, 450], \quad L_{\text{R1}} = L_{\text{R2}} = 150
+L_{\text{frag}} \in [250,450], \qquad L_{\text{R1}} = L_{\text{R2}} = 150
 $$
 
 we obtain:
 
 $$
--50 \le \text{gap} \le 150
+-50 \le \operatorname{gap} \le 150
 $$
 
 This constraint is directly derived from the fragmentation and sequencing parameters used in the simulation.
@@ -139,17 +141,15 @@ Let $\hat d(i,j)$ denote the estimated genomic distance between reads.
 We enforce:
 
 $$
--50 \le \hat d(i, \text{pair}(i)) \le 150
+-50 \le \hat d(i,\operatorname{pair}(i)) \le 150
 $$
-
----
 
 #### Simplified version (recommended)
 
 In practice, the upper bound is most important:
 
 $$
-\hat d(i, \text{pair}(i)) \le 150
+\hat d(i,\operatorname{pair}(i)) \le 150
 $$
 
 ---
@@ -165,7 +165,7 @@ $$
 For direct adjacency:
 
 $$
-\hat d(i,j) \approx |i| + |j| - \text{overlap}(i,j)
+\hat d(i,j) \approx |i| + |j| - \operatorname{overlap}(i,j)
 $$
 
 ---
@@ -183,12 +183,11 @@ $$
 
 $$
 \mathcal{X} =
-\left\{
-\pi \in S_n :
-\text{overlap}(i,j) \ge o_{\min},\;
+\{ \pi \in S_n :
+\operatorname{overlap}(i,j) \ge o_{\min},\;
 M(i,j) \le \alpha E(i,j),\;
--50 \le \hat d(i, \text{pair}(i)) \le 150
-\right\}
+-50 \le \hat d(i,\operatorname{pair}(i)) \le 150
+\}
 $$
 
 ---
@@ -198,16 +197,14 @@ $$
 ### Pairwise cost
 
 $$
-c_{ij} = L - \text{overlap}(i,j)
+c_{ij} = L - \operatorname{overlap}(i,j)
 $$
 
-where:
+where
 
 $$
 L = \min(|i|, |j|)
 $$
-
----
 
 ### Total permutation cost
 
@@ -239,38 +236,20 @@ $$
 The objective is to minimize the total adjacency cost over all feasible permutations.
 
 $$
-\min_{\pi \in \mathcal X} \; f(\pi)
+\min_{\pi \in \mathcal{X}} f(\pi)
 = \sum_{k=1}^{n-1} c_{\pi_k,\pi_{k+1}}
 $$
 
 where:
 
-- $\pi$  
-  A **permutation** (ordering) of all reads. It represents a candidate reconstruction of the genome.
-
-- $\mathcal X$  
-  The **feasible set**, i.e. the set of all permutations that satisfy the biological constraints (minimum overlap, mismatch constraints, paired-end distance constraint).
-
-- $f(\pi)$  
-  The **total cost** of a permutation. It measures how consistent the ordering is with respect to sequence overlap and constraints.
-
-- $n$  
-  The number of reads.
-
-- $k$  
-  An index over positions in the permutation, ranging from $1$ to $n-1$.
-
-- $\pi_k$  
-  The read placed at position $k$ in the permutation.
-
-- $\pi_{k+1}$  
-  The read placed immediately after $\pi_k$.
-
-- $c_{ij}$  
-  The **pairwise cost** of placing read $j$ after read $i$, typically defined as:
-  $$
-  c_{ij} = L - \text{overlap}(i,j)
-  $$
+- $\pi$: a permutation (ordering) of all reads
+- $\mathcal{X}$: the feasible set of permutations satisfying the biological constraints
+- $f(\pi)$: the total cost of a permutation
+- $n$: the number of reads
+- $k$: the index of a position in the permutation, from $1$ to $n-1$
+- $\pi_k$: the read at position $k$
+- $\pi_{k+1}$: the read immediately after $\pi_k$
+- $c_{ij}$: the pairwise cost of placing read $j$ after read $i$
 
 ---
 
@@ -281,7 +260,7 @@ A good reconstruction is one where consecutive reads have **large overlaps and l
 
 ---
 
-## 5. Computational Budget Constraint (Key Novelty)
+## 5. Computational Budget Constraint
 
 $$
 C \le B
@@ -289,8 +268,8 @@ $$
 
 where:
 
-* $C$ = computational cost (e.g. evaluations)
-* $B$ = fixed budget
+- $C$ = computational cost (e.g. evaluations)
+- $B$ = fixed budget
 
 ---
 
@@ -311,8 +290,8 @@ where:
 
 ### Simulated Annealing
 
-* local modifications (swap, reverse)
-* probabilistic acceptance:
+- local modifications (swap, reverse)
+- probabilistic acceptance:
 
 $$
 P = e^{-\Delta/T}
@@ -331,27 +310,28 @@ $$
 
 ### (A) Objective-based
 
-* best cost:
-  $$
-  \min f(\pi)
-  $$
+- best cost:
 
-* average cost
+$$
+\min f(\pi)
+$$
 
-* convergence curves
+- average cost
+- convergence curves
 
 ---
 
-### (B) Biological accuracy (important)
+### (B) Biological accuracy
 
 Using known ground truth:
 
-* adjacency accuracy:
-  $$
-  \frac{\text{correct adjacent pairs}}{n-1}
-  $$
+- adjacency accuracy:
 
-* position correlation
+$$
+\frac{\text{correct adjacent pairs}}{n-1}
+$$
+
+- position correlation
 
 ---
 
@@ -429,14 +409,16 @@ The optimization therefore seeks a **globally consistent ordering**, rather than
 ### (A) Alternative cost functions
 
 1. Alignment score:
-   $$
-   c_{ij} = -(\text{matches} - \mu \cdot \text{mismatches})
-   $$
+
+$$
+c_{ij} = -(\text{matches} - \mu \cdot \text{mismatches})
+$$
 
 2. Normalized mismatch:
-   $$
-   c_{ij} = L - \text{overlap} + \lambda \cdot \frac{\text{mismatches}}{\text{overlap}}
-   $$
+
+$$
+c_{ij} = L - \operatorname{overlap}(i,j) + \lambda \cdot \frac{\operatorname{mismatches}(i,j)}{\operatorname{overlap}(i,j)}
+$$
 
 ---
 
