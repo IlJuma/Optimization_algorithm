@@ -32,7 +32,7 @@ reports/   # simulation reports (ignored)
 Run in order:
 
 ```
-python scripts/1_generate_genome.py
+python scripts/1_generate_chromosome.py
 python scripts/2_fragment_chromosome.py
 python scripts/3_simulate_illumina.py
 ```
