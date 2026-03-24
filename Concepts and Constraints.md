@@ -74,7 +74,7 @@ For each adjacent pair $(i,j)$:
 ### (1) Minimum overlap
 
 $$
-\operatorname{overlap}(i,j) \ge o_{\min}
+\text{overlap}(i,j) \ge o_{\min}
 $$
 
 Ensures only plausible sequence adjacencies.
@@ -101,7 +101,7 @@ Ensures mismatches are consistent with sequencing error.
 
 ### (3) Paired-end distance constraint (IMPORTANT)
 
-Each read $i$ has a paired read $\operatorname{pair}(i)$.
+Each read $i$ has a paired read $\text{pair}(i)$.
 
 Paired reads:
 
@@ -115,7 +115,7 @@ Paired reads:
 Let the gap between paired reads be:
 
 $$
-\operatorname{gap}(i,\operatorname{pair}(i)) = L_{\text{frag}} - L_{\text{R1}} - L_{\text{R2}}
+\text{gap}(i,\text{pair}(i)) = L_{\text{frag}} - L_{\text{R1}} - L_{\text{R2}}
 $$
 
 Given:
@@ -127,7 +127,7 @@ $$
 we obtain:
 
 $$
--50 \le \operatorname{gap} \le 150
+-50 \le \text{gap} \le 150
 $$
 
 This constraint is directly derived from the fragmentation and sequencing parameters used in the simulation.
@@ -141,7 +141,7 @@ Let $\hat d(i,j)$ denote the estimated genomic distance between reads.
 We enforce:
 
 $$
--50 \le \hat d(i,\operatorname{pair}(i)) \le 150
+-50 \le \hat d(i,\text{pair}(i)) \le 150
 $$
 
 #### Simplified version (recommended)
@@ -149,7 +149,7 @@ $$
 In practice, the upper bound is most important:
 
 $$
-\hat d(i,\operatorname{pair}(i)) \le 150
+\hat d(i,\text{pair}(i)) \le 150
 $$
 
 ---
@@ -165,7 +165,7 @@ $$
 For direct adjacency:
 
 $$
-\hat d(i,j) \approx |i| + |j| - \operatorname{overlap}(i,j)
+\hat d(i,j) \approx |i| + |j| - \text{overlap}(i,j)
 $$
 
 ---
@@ -184,9 +184,9 @@ $$
 $$
 \mathcal{X} =
 \{ \pi \in S_n :
-\operatorname{overlap}(i,j) \ge o_{\min},\;
+\text{overlap}(i,j) \ge o_{\min},\;
 M(i,j) \le \alpha E(i,j),\;
--50 \le \hat d(i,\operatorname{pair}(i)) \le 150
+-50 \le \hat d(i,\text{pair}(i)) \le 150
 \}
 $$
 
@@ -197,7 +197,7 @@ $$
 ### Pairwise cost
 
 $$
-c_{ij} = L - \operatorname{overlap}(i,j)
+c_{ij} = L - \text{overlap}(i,j)
 $$
 
 where
@@ -417,7 +417,7 @@ $$
 2. Normalized mismatch:
 
 $$
-c_{ij} = L - \operatorname{overlap}(i,j) + \lambda \cdot \frac{\operatorname{mismatches}(i,j)}{\operatorname{overlap}(i,j)}
+c_{ij} = L - \text{overlap}(i,j) + \lambda \cdot \frac{\text{mismatches}(i,j)}{\text{overlap}(i,j)}
 $$
 
 ---

@@ -24,7 +24,11 @@ This project simulates a simplified DNA sequencing workflow:
 ```
 pipeline/   # simulation scripts
 data/fasta/   # generated sequences (ignored)
+<<<<<<< HEAD
 data/fastq/   # generated reads (ignored)
+=======
+data/fastq/   # generated sequences (ignored)
+>>>>>>> 3e07fbf (corrected Github formula display bug)
 reports/   # simulation reports (ignored)
 ```
 
