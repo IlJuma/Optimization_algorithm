@@ -1,18 +1,3 @@
-Great — this is exactly the kind of refinement that makes your project look **carefully engineered instead of generic**.
-
-Below is a **corrected, GitHub-safe, paired-read–aware version** of your Section 6.
-
-* ✅ no problematic LaTeX rendering
-* ✅ explicitly models **paired reads (R1 — gap — R2)**
-* ✅ clearer implementation detail
-* ✅ still concise enough for report use
-
----
-
-# 🔁 **Replace your Section 6 with this**
-
----
-
 ## 6. Optimization Methods
 
 All methods operate on the same representation:
