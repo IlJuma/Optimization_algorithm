@@ -12,7 +12,7 @@ OUTPUT_REPORT = "reports/fragments_report.txt"
 SEED = 123
 
 # Number of independent genome molecules to fragment
-N_GENOME_COPIES = 20
+N_GENOME_COPIES = 80
 
 # Random cut-site model
 MEAN_CUT_SPACING = 350

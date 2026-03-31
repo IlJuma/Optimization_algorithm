@@ -23,9 +23,14 @@ This project simulates a simplified DNA sequencing workflow:
 
 ```
 pipeline/   # simulation scripts
-data/fasta/   # generated sequences (ignored)
-data/fastq/   # generated reads (ignored)
-reports/   # simulation reports (ignored)
+
+- `pipeline/` – generation and validation of simulated genomic data
+- `model/` – data loading, scoring, constraints, and problem representation
+- `algorithms/` – random search, simulated annealing, and genetic algorithm
+- `experiments/` – optimization runs and result analysis
+- `data/fasta/` - generated sequences (ignored)
+- `data/fastq/` - generated reads (ignored)
+- `reports/` - simulation reports (ignored)
 ```
 
 ## Usage
