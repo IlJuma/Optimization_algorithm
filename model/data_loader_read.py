@@ -1,3 +1,55 @@
+"""
+Read data loader.
+
+Parses FASTQ files (R1/R2) into structured ReadRecord objects, reconstructing
+pair relationships and exposing sequencing metadata such as quality scores and
+ground-truth genomic positions. Provides convenient mappings (pairing, lengths,
+positions) and DataFrame export for downstream analysis.
+
+Outputs
+-------
+read_data : LoadedReadData
+    Container with:
+
+    reads : List[ReadRecord]
+        Each record contains:
+            - read_id : str
+            - pair_id : str
+            - mate : int (1 or 2)
+            - sequence : str
+            - quality : str
+            - read_length : int
+            - fragment_id : Optional[str]
+            - source : Optional[str]
+            - copy : Optional[int]
+            - frag_start : Optional[int]
+            - frag_end : Optional[int]
+            - read_start : Optional[int]
+            - read_end : Optional[int]
+
+    read_id_to_pair_id : Dict[str, str]
+    pair_id_to_read_ids : Dict[str, List[str]]
+    read_lengths : Dict[str, int]
+    quality_scores : Dict[str, str]
+    ground_truth_positions : Dict[str, Tuple[int, int]]
+    copy_indices : Dict[str, Optional[int]]
+
+reads_df : pd.DataFrame
+    Columns:
+        ["read_id", "pair_id", "mate",
+         "sequence", "quality", "read_length",
+         "fragment_id", "source", "copy",
+         "frag_start", "frag_end",
+         "read_start", "read_end"]
+
+Typical variable names
+----------------------
+read_data
+reads
+reads_df
+pair_id_to_read_ids
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,7 +63,6 @@ import pandas as pd
 # DEFAULT INPUT PATHS
 # =========================
 
-DEFAULT_FRAGMENTS_FASTA = "data/fasta/fragments.fasta"
 DEFAULT_READS_R1_FASTQ = "data/fastq/reads_R1.fastq"
 DEFAULT_READS_R2_FASTQ = "data/fastq/reads_R2.fastq"
 
@@ -19,17 +70,6 @@ DEFAULT_READS_R2_FASTQ = "data/fastq/reads_R2.fastq"
 # =========================
 # DATA CLASSES
 # =========================
-
-@dataclass
-class FragmentRecord:
-    fragment_id: str
-    source: str
-    copy: int
-    frag_start: int
-    frag_end: int
-    frag_len: int
-    sequence: str
-
 
 @dataclass
 class ReadRecord:
@@ -74,31 +114,6 @@ def parse_key_value_header(header: str) -> Dict[str, str]:
     return data
 
 
-def read_fasta_records(path: str) -> List[Tuple[str, str]]:
-    records: List[Tuple[str, str]] = []
-    header: Optional[str] = None
-    seq_parts: List[str] = []
-
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-
-            if line.startswith(">"):
-                if header is not None:
-                    records.append((header, "".join(seq_parts).upper()))
-                header = line[1:]
-                seq_parts = []
-            else:
-                seq_parts.append(line)
-
-    if header is not None:
-        records.append((header, "".join(seq_parts).upper()))
-
-    return records
-
-
 def read_fastq_records(path: str) -> List[Tuple[str, str, str]]:
     records: List[Tuple[str, str, str]] = []
 
@@ -120,49 +135,6 @@ def read_fastq_records(path: str) -> List[Tuple[str, str, str]]:
             records.append((header[1:], seq, qual))
 
     return records
-
-
-# =========================
-# FRAGMENT LOADING
-# =========================
-
-def load_fragments(fragments_fasta: str = DEFAULT_FRAGMENTS_FASTA) -> List[FragmentRecord]:
-    raw_records = read_fasta_records(fragments_fasta)
-    fragments: List[FragmentRecord] = []
-
-    for header, seq in raw_records:
-        meta = parse_key_value_header(header)
-
-        fragments.append(
-            FragmentRecord(
-                fragment_id=meta["record_id"],
-                source=meta["source"],
-                copy=int(meta["copy"]),
-                frag_start=int(meta["frag_start"]),
-                frag_end=int(meta["frag_end"]),
-                frag_len=int(meta["frag_len"]),
-                sequence=seq,
-            )
-        )
-
-    return fragments
-
-
-def fragments_to_dataframe(fragments: List[FragmentRecord]) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "fragment_id": f.fragment_id,
-                "source": f.source,
-                "copy": f.copy,
-                "frag_start": f.frag_start,
-                "frag_end": f.frag_end,
-                "frag_len": f.frag_len,
-                "sequence": f.sequence,
-            }
-            for f in fragments
-        ]
-    )
 
 
 # =========================
@@ -284,33 +256,12 @@ def reads_to_dataframe(reads: List[ReadRecord]) -> pd.DataFrame:
     )
 
 
-# =========================
-# CONVENIENCE WRAPPERS
-# =========================
-
-def load_all(
-    fragments_fasta: str = DEFAULT_FRAGMENTS_FASTA,
+def export_reads_dataframe(
     reads_r1_fastq: str = DEFAULT_READS_R1_FASTQ,
     reads_r2_fastq: Optional[str] = DEFAULT_READS_R2_FASTQ,
-) -> Tuple[List[FragmentRecord], LoadedReadData]:
-    fragments = load_fragments(fragments_fasta)
+) -> pd.DataFrame:
     read_data = load_reads(reads_r1_fastq, reads_r2_fastq)
-    return fragments, read_data
-
-
-def export_default_dataframes(
-    fragments_fasta: str = DEFAULT_FRAGMENTS_FASTA,
-    reads_r1_fastq: str = DEFAULT_READS_R1_FASTQ,
-    reads_r2_fastq: Optional[str] = DEFAULT_READS_R2_FASTQ,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    fragments, read_data = load_all(
-        fragments_fasta=fragments_fasta,
-        reads_r1_fastq=reads_r1_fastq,
-        reads_r2_fastq=reads_r2_fastq,
-    )
-    fragments_df = fragments_to_dataframe(fragments)
-    reads_df = reads_to_dataframe(read_data.reads)
-    return fragments_df, reads_df
+    return reads_to_dataframe(read_data.reads)
 
 
 # =========================
@@ -318,18 +269,12 @@ def export_default_dataframes(
 # =========================
 
 if __name__ == "__main__":
-    fragments, read_data = load_all()
+    read_data = load_reads()
 
-    print(f"Loaded fragments: {len(fragments)}")
     print(f"Loaded reads: {len(read_data.reads)}")
     print(f"Read pairs: {len(read_data.pair_id_to_read_ids)}")
 
-    fragments_df = fragments_to_dataframe(fragments)
     reads_df = reads_to_dataframe(read_data.reads)
-
-    print()
-    print("Fragments dataframe columns:")
-    print(list(fragments_df.columns))
 
     print()
     print("Reads dataframe columns:")

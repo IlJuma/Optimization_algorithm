@@ -56,7 +56,7 @@ def read_fasta(path: str) -> Tuple[str, str]:
     return header, seq
 
 
-def write_fasta(fragments: List[Dict], path: str) -> None:
+def write_fasta(fragments: List[Dict], path: str, genome_seq: str) -> None:
     with open(path, "w") as f:
         for frag in fragments:
             header = (
@@ -69,7 +69,7 @@ def write_fasta(fragments: List[Dict], path: str) -> None:
             )
             f.write(header + "\n")
 
-            seq = frag["sequence"]
+            seq = genome_seq[frag["start"]:frag["end"]]
             for j in range(0, len(seq), FASTA_LINE_WIDTH):
                 f.write(seq[j:j + FASTA_LINE_WIDTH] + "\n")
 
@@ -104,6 +104,68 @@ def generate_cut_positions(genome_length: int, mean_cut_spacing: float, rng: ran
     return cuts
 
 
+def circular_shift_interval(
+    start: int,
+    end: int,
+    genome_length: int,
+    shift: int,
+) -> List[Tuple[int, int]]:
+    """
+    Shift an interval [start, end) on a circular genome by 'shift' bases.
+    Returns one or two linear intervals in [0, genome_length).
+    This prevents the first cut from always being at a position near MEAN_CUT_SPACING
+    """
+    shifted_start = (start + shift) % genome_length
+    shifted_end = (end + shift) % genome_length
+
+    if shifted_start < shifted_end:
+        return [(shifted_start, shifted_end)]
+
+    return [
+        (shifted_start, genome_length),
+        (0, shifted_end),
+    ]
+
+
+def apply_random_circular_shift(
+    fragments: List[Dict],
+    genome_length: int,
+    rng: random.Random,
+) -> List[Dict]:
+    """
+    Apply one random circular shift to all fragments from a single genome copy.
+    If a shifted fragment wraps around the origin, split it into two fragments.
+    """
+    if genome_length <= 0:
+        return fragments
+
+    shift = rng.randint(0, genome_length - 1)
+    shifted_fragments = []
+
+    for frag in fragments:
+        shifted_intervals = circular_shift_interval(
+            start=frag["start"],
+            end=frag["end"],
+            genome_length=genome_length,
+            shift=shift,
+        )
+
+        for new_start, new_end in shifted_intervals:
+            if new_end <= new_start:
+                continue
+
+            shifted_fragments.append({
+                "source_header": frag["source_header"],
+                "copy_index": frag["copy_index"],
+                "start": new_start,
+                "end": new_end,
+                "length": new_end - new_start,
+                "sequence": frag["sequence"],
+            })
+
+    return shifted_fragments
+
+
 def fragment_one_copy(
     seq: str,
     copy_index: int,
@@ -129,6 +191,12 @@ def fragment_one_copy(
             "sequence": seq[start:end],
         })
 
+    fragments = apply_random_circular_shift(
+        fragments=fragments,
+        genome_length=len(seq),
+        rng=rng,
+    )
+
     return fragments
 
 
@@ -137,10 +205,15 @@ def size_select_fragments(
     min_insert_size: int,
     max_insert_size: int,
 ) -> List[Dict]:
-    return [
+    selected = [
         frag for frag in fragments
         if min_insert_size <= frag["length"] <= max_insert_size
     ]
+
+    for frag in selected:
+        frag["sequence"] = None
+
+    return selected
 
 
 def recover_fragments(
@@ -282,7 +355,7 @@ def main() -> None:
         max_fragments_to_keep=MAX_FRAGMENTS_TO_KEEP,
     )
 
-    write_fasta(fragments, OUTPUT_FASTA)
+    write_fasta(fragments, OUTPUT_FASTA, genome_seq)
     write_report(OUTPUT_REPORT, stats, fragments)
 
     print(f"Input FASTA: {INPUT_FASTA}")
