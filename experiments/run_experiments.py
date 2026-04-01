@@ -12,6 +12,7 @@ from model.problem import AssemblyProblem
 
 
 # Import the algorithms
+from algorithms.oracle_solution import oracle_solution
 from algorithms import random_search
 from algorithms import simulated_annealing # Uncomment when ready
 # from algorithms import genetic_algorithm   # Uncomment when ready
@@ -34,17 +35,22 @@ def main():
 
     results = []
     
-    # 2 Run Random Search
+    # 2 Run Consult Oracle    
+    print("\nRunning Oracle Ground Truth...")
+    oracle_result = oracle_solution(problem=problem, fragments=fragments)
+    results.append(oracle_result)
+    
+    # 3 Run Random Search
     print("\nRunning Baseline: Random Search...")
     rs_result = random_search.optimize(problem, config, rng)
     results.append(rs_result)
     
-    # 3 Run Simulated Annealing
+    # 4 Run Simulated Annealing
     print("\nRunning Simulated Annealing...")
     sa_result = simulated_annealing.optimize(problem, config, rng)
     results.append(sa_result)
     
-    # 4 Run Genetic Algorithm
+    # 5 Run Genetic Algorithm
     # print("\nRunning Genetic Algorithm...")
     # ga_result = genetic_algorithm.optimize(problem, config, rng)
     # results.append(ga_result)

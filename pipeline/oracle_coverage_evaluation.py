@@ -61,7 +61,8 @@ read_contigs
 import os
 from typing import Dict, List, Tuple
 import matplotlib.pyplot as plt
-
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from model.data_loader_frag import load_fragments, FragmentRecord
 from model.data_loader_read import load_reads, ReadRecord
 
