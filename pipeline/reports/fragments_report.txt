@@ -1,0 +1,18 @@
+Fragmentation simulation report
+==============================
+
+Genome length: 5000
+Genome copies fragmented: 80
+Fragments generated before size selection: 1267
+Fragments passing size selection: 264
+Fragments recovered after random sampling: 69
+
+Recovered fragment length summary
+--------------------------------
+Count: 69
+Min: 254
+Max: 444
+Mean: 339.58
+
+Total recovered bases: 23431
+Approximate mean physical coverage: 4.69x

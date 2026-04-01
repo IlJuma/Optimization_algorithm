@@ -1,6 +1,4 @@
 # Generated data
-data/
-reports/
 
 # Python
 __pycache__/
@@ -11,7 +9,6 @@ __pycache__/
 
 # Experiments
 experiments/__pycache__
-experiments/reports
 
 # Algorithms
 algorithms/__pycache__

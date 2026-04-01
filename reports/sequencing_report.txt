@@ -1,0 +1,15 @@
+Sequencing simulation report
+===========================
+
+Input fragments available: 69
+Fragments selected for sequencing: 69
+
+R1 reads written: 69
+R1 total bases: 10350
+R1 total introduced errors: 12
+R1 observed base error rate: 0.001159
+
+R2 reads written: 69
+R2 total bases: 10350
+R2 total introduced errors: 7
+R2 observed base error rate: 0.000676

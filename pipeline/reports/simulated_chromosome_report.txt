@@ -1,0 +1,7 @@
+Simulation report
+=================
+
+Final length: 5000
+Final GC fraction: 0.5108
+Number of GC windows: 20
+Mean window GC: 0.5021
