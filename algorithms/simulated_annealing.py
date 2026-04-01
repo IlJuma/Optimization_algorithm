@@ -126,9 +126,13 @@ def simulated_annealing(
 
     best_solution = current_solution.copy()
     best_cost = current_cost
+    best_contigs = problem.count_contigs(best_solution)
+    best_overlap = problem.total_overlap(best_solution)
     
     # Tracking
     cost_history = [current_cost]
+    best_contigs_history = [best_contigs]
+    best_overlap_history = [best_overlap]
     temperature_history = [T0]
     acceptance_rate_history = []
 
@@ -158,11 +162,15 @@ def simulated_annealing(
         if current_cost < best_cost:
             best_solution = current_solution.copy()
             best_cost = current_cost
+            best_contigs = problem.count_contigs(best_solution)
+            best_overlap = problem.total_overlap(best_solution)
             if verbose and iteration % 1000 == 0:
                 print(f"Iter {iteration}: new best cost = {best_cost:.1f}")
         
         # Record history
         cost_history.append(current_cost)
+        best_contigs_history.append(best_contigs)
+        best_overlap_history.append(best_overlap)
         temperature_history.append(temperature)
         acceptance_rate_history.append(1.0 if accepted else 0.0)
 
@@ -228,6 +236,8 @@ def simulated_annealing(
         "T0": T0,
         "alpha": alpha,
         "max_iterations": max_iterations,
+        "best_contigs_history": best_contigs_history,
+        "best_overlap_history": best_overlap_history
     }
 
 
@@ -253,7 +263,7 @@ def optimize(problem, config, rng):
     # Generate a numpy-safe seed from the shared random generator
     numpy_seed = rng.randint(0, 2**32 - 1)
     
-    # 2. Call Person C's core algorithm
+    # 2. Call algorithm
     raw_result = simulated_annealing(
         problem=problem,
         T0=t0,
@@ -266,9 +276,7 @@ def optimize(problem, config, rng):
     
     runtime = time.time() - start_time
     
-    # 3. Format the history arrays
-    # Person C's 'cost_history' tracks the noisy current cost. 
-    # We need to calculate the "best score so far" history for the generic plotting script.
+    # 3. Format the history arrays 
     best_history = []
     current_best = float('inf')
     for cost in raw_result['cost_history']:
@@ -281,9 +289,11 @@ def optimize(problem, config, rng):
         "method": "Simulated Annealing",
         "best_solution": raw_result["best_solution"],
         "best_score": raw_result["best_cost"],
-        "history": best_history,                             # Smooth best-cost staircase
-        "current_cost_history": raw_result["cost_history"],  # Noisy exploration cloud
-        "evaluations": len(raw_result["cost_history"]) - 1,  # Number of actual steps taken
+        "history": best_history,                             
+        "current_cost_history": raw_result["cost_history"], 
+        "contigs_history": raw_result["best_contigs_history"], # NEW
+        "overlap_history": raw_result["best_overlap_history"], # NEW
+        "evaluations": len(raw_result["cost_history"]) - 1,  
         "runtime_sec": runtime,
         "breaks": raw_result["best_breaks"]
     }

@@ -19,28 +19,34 @@ def ensure_dir(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-# Plotting functions
+# Plotting functions --------------
 
-def plot_convergence(results):
-    """Plots the 'best cost' history over evaluations for all algorithms."""
+def plot_metric_convergence(results, metric_key, title, ylabel, filename, lower_is_better=True):
+    """Generic function to plot line graphs for Cost, Contigs, and Overlap."""
     plt.figure(figsize=(10, 6))
+    has_data = False
     
     for res in results:
         method = res["method"]
-        history = res.get("history", [])
-        color = COLORS.get(method, "#333333")
+        history = res.get(metric_key, [])
         
-        # Plot the staircase of best scores
-        plt.plot(history, label=method, color=color, linewidth=2.5, alpha=0.9)
-        
-    plt.title("Optimization Convergence: Algorithm Comparison", fontsize=14, fontweight='bold')
+        if history:
+            has_data = True
+            color = COLORS.get(method, "#333333")
+            plt.plot(history, label=method, color=color, linewidth=2.5, alpha=0.9)
+            
+    if not has_data:
+        plt.close()
+        return
+
+    plt.title(title, fontsize=14, fontweight='bold')
     plt.xlabel("Evaluations", fontsize=12)
-    plt.ylabel("Total Cost (Lower is Better)", fontsize=12)
+    plt.ylabel(ylabel, fontsize=12)
     plt.legend(fontsize=11)
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
     
-    out_path = os.path.join(OUTPUT_DIR, "1_convergence_comparison.png")
+    out_path = os.path.join(OUTPUT_DIR, filename)
     plt.savefig(out_path, dpi=300)
     plt.close()
     print(f"Generated: {out_path}")
@@ -83,7 +89,7 @@ def plot_bar_metrics(results):
                  f'{bar.get_height():.2f}s', ha='center', va='bottom')
 
     plt.tight_layout()
-    out_path = os.path.join(OUTPUT_DIR, "2_metrics_comparison.png")
+    out_path = os.path.join(OUTPUT_DIR, "4_metrics_comparison.png")
     plt.savefig(out_path, dpi=300)
     plt.close()
     print(f"Generated: {out_path}")
@@ -104,7 +110,8 @@ def plot_search_space_distributions(results):
             colors_to_use.append(COLORS.get(res["method"], "#333333"))
             
     if not data_to_plot:
-        return # Skip if no algorithms exported current_cost_history
+        plt.close()
+        return 
         
     parts = plt.violinplot(data_to_plot, showmeans=True)
     
@@ -121,34 +128,41 @@ def plot_search_space_distributions(results):
     plt.ylabel("Evaluated Costs (Where did the algorithm spend its time?)", fontsize=12)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     
-    out_path = os.path.join(OUTPUT_DIR, "3_exploration_distribution.png")
+    out_path = os.path.join(OUTPUT_DIR, "5_exploration_distribution.png")
     plt.savefig(out_path, dpi=300)
     plt.close()
     print(f"Generated: {out_path}")
 
 def generate_summary_table(results):
-    """Creates a Markdown summary of the final metrics for your report."""
+    """Generates a clean markdown table summarizing the results."""
     data = []
     for res in results:
+        # extract the final contig and overlap values from the history arrays
+        contigs_hist = res.get("contigs_history", [])
+        overlap_hist = res.get("overlap_history", [])
+        
+        final_contigs = contigs_hist[-1] if contigs_hist else "N/A"
+        final_overlap = overlap_hist[-1] if overlap_hist else "N/A"
+        
         data.append({
             "Method": res["method"],
             "Best Cost": round(res["best_score"], 2),
             "Breaks": res.get("breaks", "N/A"),
+            "Final Contigs": final_contigs,        # NEW
+            "Final Overlap": final_overlap,        # NEW
             "Evaluations": res["evaluations"],
             "Runtime (s)": round(res["runtime_sec"], 2)
         })
         
     df = pd.DataFrame(data)
-    
-    md_path = os.path.join(OUTPUT_DIR, "4_summary_metrics.md")
+    md_path = os.path.join(OUTPUT_DIR, "6_summary_metrics.md")
     with open(md_path, "w") as f:
         f.write("### Final Optimization Results\n\n")
         f.write(df.to_markdown(index=False))
         
     print(f"Generated: {md_path}")
 
-# 
-# MAIN EXECUTION ---------------
+# Main execution --------------
 
 def main():
     ensure_dir(OUTPUT_DIR)
@@ -163,12 +177,18 @@ def main():
         results = json.load(f)
         
     print("\nGenerating Comparison Plots...")
-    plot_convergence(results)
+    
+    # Generate the 3 convergence lines
+    plot_metric_convergence(results, "history", "Convergence: Overall Cost", "Cost (Lower is Better)", "1_cost_convergence.png")
+    plot_metric_convergence(results, "contigs_history", "Convergence: Contig Count", "Number of Contigs (Lower is Better)", "2_contigs_convergence.png")
+    plot_metric_convergence(results, "overlap_history", "Convergence: Total Sequence Overlap", "Total Overlap (Higher is Better)", "3_overlap_convergence.png", lower_is_better=False)
+    
+    # Generate the bar chart, violin plot, and table
     plot_bar_metrics(results)
     plot_search_space_distributions(results)
     generate_summary_table(results)
     
-    print(f"\nPipeline complete! All plots saved to: {OUTPUT_DIR}")
+    print(f"\nPipeline complete. All plots saved to: {OUTPUT_DIR}")
 
 if __name__ == "__main__":
     main()
