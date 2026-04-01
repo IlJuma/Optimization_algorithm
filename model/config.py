@@ -73,8 +73,8 @@ RS_NUM_SAMPLES = 10_000
 
 # --- Simulated Annealing Specific ---
 SA_INITIAL_TEMP = 10.0
-SA_COOLING_RATE = 0.995
-SA_MIN_TEMP = 1e-3
+SA_COOLING_RATE = 0.999
+SA_MIN_TEMP = 1e-6
 SA_NEIGHBORHOOD = "swap"
 
 # --- Genetic Algorithm Specific ---
