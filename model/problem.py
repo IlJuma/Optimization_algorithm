@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Set
 
 from .data_loader_frag import FragmentRecord
 
@@ -10,16 +9,22 @@ from .data_loader_frag import FragmentRecord
 # CONFIG / DEFAULTS
 # =========================
 
-DENSE_THRESHOLD = 200
-
 # Edge scoring defaults
-MIN_OVERLAP = 20
-PARTIAL_OVERLAP_FACTOR = 1.0  # use 1.0 or 2.0
-USE_CANDIDATE_FILTER = True
-KMER_SIZE = 8
+MIN_OVERLAP = 20  # Neighboring fragments must overlap by MIN_OVERLAP or more to be considered in the same contig
+BREAK_FACTOR = 2  # Scales the break penalty: P = BREAK_FACTOR * L
+PARTIAL_OVERLAP_FACTOR = 1  # Reduces break penalty when 0 < overlap < MIN_OVERLAP. Use 1 or 2
 
-# Neighbor cap for sparse mode
-MAX_NEIGHBORS_PER_FRAGMENT = 50
+# Dense mode (n <= DENSE_THRESHOLD):
+#   - All pairwise fragment edges (i, j) are precomputed and stored in a full matrix
+#   - Fast O(1) lookup during optimization
+#   - Higher upfront cost: O(n^2) time and memory
+DENSE_THRESHOLD = 200  # Threshold for switching between dense and sparse edge evaluation.
+
+# Sparse mode (n > DENSE_THRESHOLD):
+#   - Edge information is computed lazily (on demand) and cached
+#   - Only edges actually queried by the algorithm are evaluated
+#   - Lower memory usage and avoids unnecessary computations
+MAX_NEIGHBORS_PER_FRAGMENT = 50  # Maximum number of best (lowest-cost) feasible neighbors retained per fragment in sparse mode.
 
 
 # =========================
@@ -37,7 +42,7 @@ class EdgeInfo:
 # HELPER FUNCTIONS
 # =========================
 
-def best_suffix_prefix_overlap(left: str, right: str) -> int:
+def best_suffix_prefix_overlap(left, right):
     """
     Find the longest exact suffix-prefix overlap between two error-free sequences.
     """
@@ -50,43 +55,13 @@ def best_suffix_prefix_overlap(left: str, right: str) -> int:
     return 0
 
 
-def kmer_set(seq: str, k: int) -> Set[str]:
-    if k <= 0 or len(seq) < k:
-        return set()
-    return {seq[i:i + k] for i in range(len(seq) - k + 1)}
-
-
-def quick_candidate_test(
-    left_seq: str,
-    right_seq: str,
-    left_kmers: Set[str],
-    right_kmers: Set[str],
-) -> bool:
-    """
-    Cheap plausibility test before computing a full overlap.
-    """
-    if not left_seq or not right_seq:
-        return False
-
-    if left_kmers and right_kmers:
-        if left_kmers.isdisjoint(right_kmers):
-            return False
-
-    return True
-
-
-def overlap_edge_info(
-    left: str,
-    right: str,
-    min_overlap: int,
-    partial_overlap_factor: float,
-) -> EdgeInfo:
+def overlap_edge_info(left, right, min_overlap, break_factor, partial_overlap_factor):
     """
     Compute exact-overlap edge information for two error-free fragment sequences.
 
     Let:
         L = min(len(left), len(right))
-        P = 2 * L
+        P = break_factor * L
 
     Cost:
         if overlap >= min_overlap:
@@ -102,7 +77,7 @@ def overlap_edge_info(
         - partial sub-threshold overlap is still a break, but better than zero overlap
     """
     L = min(len(left), len(right))
-    P = 2 * L
+    P = break_factor * L
 
     overlap = best_suffix_prefix_overlap(left, right)
 
@@ -110,20 +85,20 @@ def overlap_edge_info(
         return EdgeInfo(
             overlap=overlap,
             feasible=True,
-            cost=float(L - overlap),
+            cost=L - overlap,
         )
 
     if overlap > 0:
         return EdgeInfo(
             overlap=overlap,
             feasible=False,
-            cost=float(P - partial_overlap_factor * overlap),
+            cost=P - partial_overlap_factor * overlap,
         )
 
     return EdgeInfo(
         overlap=0,
         feasible=False,
-        cost=float(P),
+        cost=P,
     )
 
 
@@ -133,29 +108,42 @@ def overlap_edge_info(
 
 class AssemblyProblem:
     """
-    Fragment ordering problem for overlap-based assembly experiments.
+    AssemblyProblem defines the scoring model for fragment ordering.
 
-    A solution is represented as:
-        List[str]  # ordered fragment_id values
+    It encapsulates a specific set of DNA fragments and provides methods to
+    evaluate candidate solutions (orderings of fragment IDs) based on
+    sequence overlap.
 
-    Design:
-        - dense edge matrix for small n
-        - lazy sparse caching for larger n
-        - exact overlap scoring for fragment-only phase
-        - breaks penalized using P = 2 * L
-        - partial overlaps below MIN_OVERLAP are still breaks, but receive a
-          slightly reduced penalty
+    Key ideas:
+    - A solution is a list of fragment_ids representing an ordering
+    - Adjacent fragments are scored using suffix-prefix overlap
+    - Valid overlaps (>= MIN_OVERLAP) reduce cost
+    - Invalid or weak overlaps are treated as contig breaks and penalized
+      with P = BREAK_FACTOR * min(fragment lengths)
+    - Partial overlaps below threshold receive a reduced penalty
+
+    Performance:
+    - For small datasets, pairwise edge information is precomputed (dense)
+    - For larger datasets, edges are computed lazily and cached (sparse)
+
+    Usage:
+        fragments = load_fragments()
+        problem = AssemblyProblem(fragments)
+
+        solution = [...]  # list of fragment_ids
+        score = problem.evaluate(solution)
+
+    Lower scores indicate better assemblies (fewer breaks, larger overlaps).
     """
 
     def __init__(
         self,
-        fragments: List[FragmentRecord],
-        dense_threshold: int = DENSE_THRESHOLD,
-        min_overlap: int = MIN_OVERLAP,
-        partial_overlap_factor: float = PARTIAL_OVERLAP_FACTOR,
-        use_candidate_filter: bool = USE_CANDIDATE_FILTER,
-        kmer_size: int = KMER_SIZE,
-        max_neighbors_per_fragment: int = MAX_NEIGHBORS_PER_FRAGMENT,
+        fragments,
+        dense_threshold=DENSE_THRESHOLD,
+        min_overlap=MIN_OVERLAP,
+        break_factor=BREAK_FACTOR,
+        partial_overlap_factor=PARTIAL_OVERLAP_FACTOR,
+        max_neighbors_per_fragment=MAX_NEIGHBORS_PER_FRAGMENT,
     ):
         self.fragments = fragments
         self.fragment_ids = [f.fragment_id for f in fragments]
@@ -163,84 +151,47 @@ class AssemblyProblem:
 
         self.dense_threshold = dense_threshold
         self.min_overlap = min_overlap
+        self.break_factor = break_factor
         self.partial_overlap_factor = partial_overlap_factor
-        self.use_candidate_filter = use_candidate_filter
-        self.kmer_size = kmer_size
         self.max_neighbors_per_fragment = max_neighbors_per_fragment
 
         self.use_dense = self.n <= self.dense_threshold
 
-        self.fragment_by_id: Dict[str, FragmentRecord] = {
+        self.fragment_by_id = {
             f.fragment_id: f for f in fragments
         }
-        self.id_to_index: Dict[str, int] = {
+        self.id_to_index = {
             f.fragment_id: i for i, f in enumerate(fragments)
         }
-        self.index_to_id: List[str] = self.fragment_ids.copy()
-
-        self.kmer_index: Dict[str, Set[str]] = {
-            f.fragment_id: kmer_set(f.sequence, self.kmer_size)
-            for f in fragments
-        }
+        self.index_to_id = self.fragment_ids.copy()
 
         # Dense storage
-        self.edge_matrix: Optional[List[List[Optional[EdgeInfo]]]] = None
+        self.edge_matrix = None
 
         # Sparse / lazy storage
-        self.edge_cache: Dict[Tuple[str, str], EdgeInfo] = {}
-        self.neighbor_cache: Dict[str, List[str]] = {}
+        self.edge_cache = {}
+        self.neighbor_cache = {}
 
         if self.use_dense:
             self._precompute_dense()
-
 
     # =========================
     # EDGE COMPUTATION
     # =========================
 
-    def _break_penalty(self, left_id: str, right_id: str) -> float:
+    def _compute_edge(self, left_id, right_id):
         left = self.fragment_by_id[left_id]
         right = self.fragment_by_id[right_id]
-        L = min(left.frag_len, right.frag_len)
-        return float(2 * L)
-
-    def _self_edge_info(self, fragment_id: str) -> EdgeInfo:
-        frag = self.fragment_by_id[fragment_id]
-        P = float(2 * frag.frag_len)
-        return EdgeInfo(
-            overlap=0,
-            feasible=False,
-            cost=P,
-        )
-
-    def _compute_edge(self, left_id: str, right_id: str) -> EdgeInfo:
-        if left_id == right_id:
-            return self._self_edge_info(left_id)
-
-        left = self.fragment_by_id[left_id]
-        right = self.fragment_by_id[right_id]
-
-        if self.use_candidate_filter:
-            if not quick_candidate_test(
-                left.sequence,
-                right.sequence,
-                self.kmer_index[left_id],
-                self.kmer_index[right_id],
-            ):
-                return EdgeInfo(
-                    overlap=0,
-                    feasible=False,
-                    cost=self._break_penalty(left_id, right_id),
-                )
 
         return overlap_edge_info(
             left=left.sequence,
             right=right.sequence,
             min_overlap=self.min_overlap,
+            break_factor=self.break_factor,
             partial_overlap_factor=self.partial_overlap_factor,
         )
 
-    def _precompute_dense(self) -> None:
+    def _precompute_dense(self):
         self.edge_matrix = [
             [None for _ in range(self.n)]
             for _ in range(self.n)
@@ -254,11 +205,11 @@ class AssemblyProblem:
     # PUBLIC EDGE INTERFACE
     # =========================
 
-    def pair_info(self, left_id: str, right_id: str) -> EdgeInfo:
+    def pair_info(self, left_id, right_id):
         if self.use_dense:
             i = self.id_to_index[left_id]
             j = self.id_to_index[right_id]
-            return self.edge_matrix[i][j]  # type: ignore[index]
+            return self.edge_matrix[i][j]
 
         key = (left_id, right_id)
         if key not in self.edge_cache:
@@ -266,18 +217,19 @@ class AssemblyProblem:
 
         return self.edge_cache[key]
 
-    def pair_cost(self, left_id: str, right_id: str) -> float:
+    def pair_cost(self, left_id, right_id):
         return self.pair_info(left_id, right_id).cost
 
-    def pair_overlap(self, left_id: str, right_id: str) -> int:
+    def pair_overlap(self, left_id, right_id):
         return self.pair_info(left_id, right_id).overlap
 
-    def is_edge_feasible(self, left_id: str, right_id: str) -> bool:
+    def is_edge_feasible(self, left_id, right_id):
         return self.pair_info(left_id, right_id).feasible
 
-    def get_neighbors(self, fragment_id: str) -> List[str]:
+    def get_neighbors(self, fragment_id):
         """
-        Return plausible right-neighbor candidates for one fragment.
+        Return fragments that can follow this fragment in the same contig
+        (i.e. overlap ≥ MIN_OVERLAP).
 
         Dense mode:
             returns all feasible neighbors
@@ -315,33 +267,33 @@ class AssemblyProblem:
     # SOLUTION EVALUATION
     # =========================
 
-    def evaluate(self, solution: List[str]) -> float:
+    def evaluate(self, solution):
         """
         Evaluate a full permutation.
 
         Lower is better.
         """
         if len(solution) <= 1:
-            return 0.0
+            return 0
 
-        total = 0.0
+        total = 0
         for i in range(len(solution) - 1):
             total += self.pair_cost(solution[i], solution[i + 1])
         return total
 
-    def count_breaks(self, solution: List[str]) -> int:
+    def count_breaks(self, solution):
         breaks = 0
         for i in range(len(solution) - 1):
             if not self.is_edge_feasible(solution[i], solution[i + 1]):
                 breaks += 1
         return breaks
 
-    def count_contigs(self, solution: List[str]) -> int:
+    def count_contigs(self, solution):
         if not solution:
             return 0
         return 1 + self.count_breaks(solution)
 
-    def total_overlap(self, solution: List[str]) -> int:
+    def total_overlap(self, solution):
         total = 0
         for i in range(len(solution) - 1):
             total += self.pair_overlap(solution[i], solution[i + 1])
