@@ -15,7 +15,7 @@ from model.problem import AssemblyProblem
 from algorithms.oracle_solution import oracle_solution
 from algorithms import random_search
 from algorithms import simulated_annealing # Uncomment when ready
-# from algorithms import genetic_algorithm   # Uncomment when ready
+from algorithms import genetic_algorithm   # Uncomment when ready
 
 def main():
     print("Initializing Genome Assembly Optimization Experiment...")
@@ -51,9 +51,9 @@ def main():
     results.append(sa_result)
     
     # 5 Run Genetic Algorithm
-    # print("\nRunning Genetic Algorithm...")
-    # ga_result = genetic_algorithm.optimize(problem, config, rng)
-    # results.append(ga_result)
+    print("\nRunning Genetic Algorithm...")
+    ga_result = genetic_algorithm.optimize(problem, config, rng)
+    results.append(ga_result)
     
     # Save results to JSON for analyze_results.py script
     os.makedirs("reports", exist_ok=True)
