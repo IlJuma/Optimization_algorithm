@@ -75,7 +75,7 @@ RS_NUM_SAMPLES = 10_000
 SA_INITIAL_TEMP = 100.0
 SA_COOLING_RATE = 0.999
 SA_MIN_TEMP = 1e-6
-SA_NEIGHBORHOOD = "swap"  # "swap" or "insert"
+SA_NEIGHBORHOOD = "swap"  
 
 # --- Genetic Algorithm Specific ---
 GA_POP_SIZE = 10
