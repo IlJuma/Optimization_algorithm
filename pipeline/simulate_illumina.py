@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 # PARAMETERS
 # =========================
 
-INPUT_FASTA = "data/fasta/fragments.fasta"          # Output from script #2
+INPUT_FASTA = "data/fasta/fragments.fasta"          # Output from fragment_chromosome.py
 OUTPUT_FASTQ_R1 = "data/fastq/reads_R1.fastq"
 OUTPUT_FASTQ_R2 = "data/fastq/reads_R2.fastq"
 OUTPUT_REPORT = "reports/sequencing_report.txt"

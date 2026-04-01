@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 # PARAMETERS
 # =========================
 
-INPUT_FASTA = "data/fasta/simulated_chromosome.fasta"         # Output from script #1
+INPUT_FASTA = "data/fasta/simulated_chromosome.fasta"         # Output from generate_chromosome.py
 OUTPUT_FASTA = "data/fasta/fragments.fasta"
 OUTPUT_REPORT = "reports/fragments_report.txt"
 
