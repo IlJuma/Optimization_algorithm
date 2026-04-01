@@ -8,3 +8,10 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Experiments
+experiments/__pycache__
+experiments/reports
+
+# Algorithms
+algorithms/__pycache__

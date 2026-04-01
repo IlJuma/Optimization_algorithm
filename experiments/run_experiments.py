@@ -2,26 +2,36 @@ import json
 import random
 import time
 import os
+import sys
 
 # Import the shared config and problem model
-import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from model import config
-# from model.problem import AssemblyProblem  # Uncomment when ready
+from model.data_loader_frag import load_fragments
+from model.problem import AssemblyProblem
+
 
 # Import the algorithms
 from algorithms import random_search
-# from algorithms import simulated_annealing # Uncomment when ready
+from algorithms import simulated_annealing # Uncomment when ready
 # from algorithms import genetic_algorithm   # Uncomment when ready
 
 def main():
     print("Initializing Genome Assembly Optimization Experiment...")
     rng = random.Random(config.RANDOM_SEED)
     
+    # Load the fragments
+    print("Loading fragments...")
+    fragments = load_fragments()
+
     # 1 Load the problem
-    # problem = AssemblyProblem(reads_file="data/fastq/reads_R1.fastq", config=config)
-    problem = None # Placeholder
-    
+    print("Building Assembly Problem...")
+    problem = AssemblyProblem(
+        fragments=fragments, 
+        min_overlap=config.MIN_OVERLAP
+    )
+    print(f"Problem initialized with {problem.n} fragments.")
+
     results = []
     
     # 2 Run Random Search
@@ -30,9 +40,9 @@ def main():
     results.append(rs_result)
     
     # 3 Run Simulated Annealing
-    # print("\nRunning Simulated Annealing...")
-    # sa_result = simulated_annealing.optimize(problem, config, rng)
-    # results.append(sa_result)
+    print("\nRunning Simulated Annealing...")
+    sa_result = simulated_annealing.optimize(problem, config, rng)
+    results.append(sa_result)
     
     # 4 Run Genetic Algorithm
     # print("\nRunning Genetic Algorithm...")

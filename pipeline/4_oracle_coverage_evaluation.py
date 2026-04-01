@@ -1,6 +1,69 @@
+"""
+Oracle coverage evaluation.
+
+Uses ground-truth metadata from fragments and reads to reconstruct their true
+genomic placement and evaluate coverage along the reference genome. Computes
+coverage profiles, detects gaps and contigs, and generates reports and plots
+for both fragment-level (physical) and read-level (sequenced) coverage.
+
+Inputs
+------
+fragments : List[FragmentRecord]
+reads : List[ReadRecord]
+reference sequence (FASTA)
+
+Internal representations
+------------------------
+fragment_intervals : List[Tuple[int, int, str]]
+    (frag_start, frag_end, fragment_id)
+
+read_intervals : List[Tuple[int, int, str]]
+    (read_start, read_end, read_id)
+
+coverage arrays
+---------------
+fragment_coverage : List[int]
+read_coverage : List[int]
+
+Outputs
+-------
+Coverage TSVs:
+    - fragments_coverage.tsv
+    - reads_coverage.tsv
+    Columns:
+        position, coverage
+
+Gap intervals:
+    List[Tuple[int, int]]  # (start, end)
+
+Contigs:
+    List[Tuple[int, int]]  # (start, end)
+
+Plots:
+    - fragments_coverage_plot.png
+    - reads_coverage_plot.png
+
+Report:
+    reconstruction_report.txt
+
+Typical variable names
+----------------------
+fragment_intervals
+read_intervals
+fragment_coverage
+read_coverage
+fragment_gaps
+read_gaps
+fragment_contigs
+read_contigs
+"""
+
 import os
-from typing import Dict, List, Tuple, Iterable
+from typing import Dict, List, Tuple
 import matplotlib.pyplot as plt
+
+from model.data_loader_frag import load_fragments, FragmentRecord
+from model.data_loader_read import load_reads, ReadRecord
 
 # =========================
 # PARAMETERS (EDIT HERE)
@@ -67,90 +130,6 @@ def read_single_fasta(path: str) -> Tuple[str, str]:
 
     return header, "".join(seq_parts).upper()
 
-
-def parse_key_value_header(header: str) -> Dict[str, str]:
-    parts = header.split()
-    data = {"record_id": parts[0]}
-    for token in parts[1:]:
-        if "=" in token:
-            key, value = token.split("=", 1)
-            data[key] = value
-    return data
-
-
-def read_fragments_fasta(path: str) -> List[Dict]:
-    records = []
-    header = None
-    seq_parts = []
-
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-
-            if line.startswith(">"):
-                if header is not None:
-                    meta = parse_key_value_header(header)
-                    meta["sequence"] = "".join(seq_parts).upper()
-                    meta["frag_start"] = int(meta["frag_start"])
-                    meta["frag_end"] = int(meta["frag_end"])
-                    meta["frag_len"] = int(meta["frag_len"])
-                    meta["copy"] = int(meta["copy"])
-                    records.append(meta)
-
-                header = line[1:]
-                seq_parts = []
-            else:
-                seq_parts.append(line)
-
-    if header is not None:
-        meta = parse_key_value_header(header)
-        meta["sequence"] = "".join(seq_parts).upper()
-        meta["frag_start"] = int(meta["frag_start"])
-        meta["frag_end"] = int(meta["frag_end"])
-        meta["frag_len"] = int(meta["frag_len"])
-        meta["copy"] = int(meta["copy"])
-        records.append(meta)
-
-    return records
-
-
-def read_fastq_records(path: str) -> Iterable[Tuple[str, str, str]]:
-    with open(path) as f:
-        while True:
-            header = f.readline().strip()
-            if not header:
-                break
-            seq = f.readline().strip()
-            plus = f.readline().strip()
-            qual = f.readline().strip()
-
-            if not header.startswith("@"):
-                raise ValueError(f"Invalid FASTQ header in {path}: {header}")
-            if plus != "+":
-                raise ValueError(f"Invalid FASTQ record in {path}: expected '+' line")
-
-            yield header[1:], seq, qual
-
-
-def read_reads_fastq(path: str) -> List[Dict]:
-    records = []
-
-    for header, seq, qual in read_fastq_records(path):
-        meta = parse_key_value_header(header)
-        meta["sequence"] = seq
-        meta["quality"] = qual
-        meta["copy"] = int(meta["copy"])
-        meta["frag_start"] = int(meta["frag_start"])
-        meta["frag_end"] = int(meta["frag_end"])
-        meta["read_start"] = int(meta["read_start"])
-        meta["read_end"] = int(meta["read_end"])
-        meta["mate"] = int(meta["mate"])
-        records.append(meta)
-
-    return records
-
 # =========================
 # COVERAGE / INTERVAL LOGIC
 # =========================
@@ -163,28 +142,29 @@ def increment_coverage(coverage: List[int], start: int, end: int) -> None:
         coverage[i] += 1
 
 
-def intervals_from_fragments(fragments: List[Dict]) -> List[Tuple[int, int, str]]:
+def intervals_from_fragments(fragments: List[FragmentRecord]) -> List[Tuple[int, int, str]]:
     intervals = []
     for frag in fragments:
-        intervals.append((frag["frag_start"], frag["frag_end"], frag["record_id"]))
+        intervals.append((frag.frag_start, frag.frag_end, frag.fragment_id))
     return intervals
 
 
 def intervals_from_reads(
-    reads_r1: List[Dict],
-    reads_r2: List[Dict],
+    reads: List[ReadRecord],
     use_r1: bool,
     use_r2: bool,
 ) -> List[Tuple[int, int, str]]:
     intervals = []
 
-    if use_r1:
-        for read in reads_r1:
-            intervals.append((read["read_start"], read["read_end"], read["record_id"]))
+    for read in reads:
+        if read.mate == 1 and not use_r1:
+            continue
+        if read.mate == 2 and not use_r2:
+            continue
+        if read.read_start is None or read.read_end is None:
+            continue
 
-    if use_r2:
-        for read in reads_r2:
-            intervals.append((read["read_start"], read["read_end"], read["record_id"]))
+        intervals.append((read.read_start, read.read_end, read.read_id))
 
     return intervals
 
@@ -357,30 +337,52 @@ def choose_plot_bin_size(genome_length: int, target_bins: int) -> int:
     return max(1, genome_length // target_bins)
 
 
-def make_binned_coverage(coverage: List[int], bin_size: int) -> Tuple[List[float], List[float]]:
+def make_binned_coverage(
+    coverage: List[int],
+    bin_size: int,
+) -> Tuple[List[float], List[float], List[bool]]:
     if bin_size <= 0:
         raise ValueError("PLOT_BIN_SIZE must be > 0")
 
     x = []
     y = []
+    has_gap = []
 
     for start in range(0, len(coverage), bin_size):
         end = min(start + bin_size, len(coverage))
         window = coverage[start:end]
         x.append((start + end - 1) / 2.0)
         y.append(sum(window) / len(window))
+        has_gap.append(any(v == 0 for v in window))
 
-    return x, y
+    return x, y, has_gap
 
 
 def write_coverage_plot(path: str, coverage: List[int], target_bins: int, title: str) -> None:
     ensure_reports_dir(path)
 
     bin_size = choose_plot_bin_size(len(coverage), target_bins)
-    x, y = make_binned_coverage(coverage, bin_size)
+    x, y, has_gap = make_binned_coverage(coverage, bin_size)
+
+    colors = ["red" if gap else "blue" for gap in has_gap]
 
     plt.figure(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
-    plt.plot(x, y)
+
+    for i in range(len(x) - 1):
+        if has_gap[i] or has_gap[i + 1]:
+            color = "red"
+        else:
+            color = "blue"
+
+        plt.plot(
+            [x[i], x[i + 1]],
+            [y[i], y[i + 1]],
+            color=color,
+        )
+
+    if len(x) == 1:
+        plt.plot(x, y, color=colors[0])
+
     plt.xlabel("Genome position (bp)")
     plt.ylabel(f"Mean coverage per {bin_size} bp bin")
     plt.title(title)
@@ -396,12 +398,14 @@ def main() -> None:
     reference_header, reference_seq = read_single_fasta(REFERENCE_FASTA)
     genome_length = len(reference_seq)
 
-    fragments = read_fragments_fasta(FRAGMENTS_FASTA)
+    fragments = load_fragments(FRAGMENTS_FASTA)
     fragment_intervals = intervals_from_fragments(fragments)
 
-    reads_r1 = read_reads_fastq(READS_R1_FASTQ) if USE_R1 else []
-    reads_r2 = read_reads_fastq(READS_R2_FASTQ) if USE_R2 else []
-    read_intervals = intervals_from_reads(reads_r1, reads_r2, USE_R1, USE_R2)
+    read_data = load_reads(
+        reads_r1_fastq=READS_R1_FASTQ if USE_R1 else None,
+        reads_r2_fastq=READS_R2_FASTQ if USE_R2 else None,
+    )
+    read_intervals = intervals_from_reads(read_data.reads, USE_R1, USE_R2)
 
     fragment_coverage = build_coverage(genome_length, fragment_intervals)
     read_coverage = build_coverage(genome_length, read_intervals)

@@ -1,52 +1,38 @@
-import sys
-import os
-sys.path.append(os.path.abspath("../algorithms"))
 import random
-import random_search
+import os
+import sys
 
-# ---------------------------------------------------------
-# Mock Config
-# ---------------------------------------------------------
-class MockConfig:
-    MAX_EVALUATIONS = 5000
-    MAX_TIME_SEC = 5
+# Dynamically add the project root to the path so imports work smoothly
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-config = MockConfig()
+# Import the actual Random Search algorithm
+from algorithms import random_search
 
-# ---------------------------------------------------------
-# Mock Problem Class
-# ---------------------------------------------------------
-class MockAssemblyProblem:
-    def __init__(self, num_reads):
-        self.num_reads = num_reads
-        # We will pretend the "optimal" answer is just [0, 1, 2, ..., n-1]
-        self.optimal_solution = list(range(num_reads))
-        
-    def random_solution(self, rng):
-        """Returns a shuffled permutation of read indices."""
-        sol = list(range(self.num_reads))
-        rng.shuffle(sol)
-        return sol
-        
-    def evaluate(self, solution):
-        """
-        Mock evaluation: cost is based on how far away each read 
-        is from its 'optimal' position. (Lower is better).
-        """
-        cost = 0
-        for i, val in enumerate(solution):
-            cost += abs(i - val)
-        return float(cost)
+# Import the real global config
+from model import config
+
+# 1. Import the REAL loaders and problem class
+from model.data_loader_frag import load_fragments
+from model.problem import AssemblyProblem
 
 # ---------------------------------------------------------
 # Run Algorithm
 # ---------------------------------------------------------
 if __name__ == "__main__":
     rng = random.Random(42)
-    # Give it a tiny problem (e.g., 10 reads) so it has a chance to find a good score
-    problem = MockAssemblyProblem(num_reads=10)
     
-    print("Starting Random Search...")
+    # Temporarily override the real config parameters for a quick test
+    config.MAX_EVALUATIONS = 5000
+    config.MAX_TIME_SEC = 5.0
+    
+    # 2. Load the real data and build the real problem
+    print("Loading real fragments...")
+    fragments = load_fragments() 
+    
+    print("Building real AssemblyProblem...")
+    problem = AssemblyProblem(fragments=fragments, min_overlap=config.MIN_OVERLAP)
+    
+    print(f"Starting Random Search on {problem.n} real fragments...")
     result = random_search.optimize(problem, config, rng)
     
     print("\n--- Results ---")
@@ -54,4 +40,5 @@ if __name__ == "__main__":
     print(f"Evaluations:   {result['evaluations']}")
     print(f"Runtime:       {result['runtime_sec']:.4f} seconds")
     print(f"Best Score:    {result['best_score']}")
-    print(f"Best Solution: {result['best_solution']}")
+    print(f"Breaks:        {result.get('breaks', 'N/A')}")
+    # Note: We skip printing 'best_solution' here because printing thousands of IDs will flood your terminal!
