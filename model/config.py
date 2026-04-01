@@ -6,7 +6,7 @@
 RANDOM_SEED = SEED = 123
 
 # --- generate_chromosome ---
-LENGTH = 5000                       # Total sequence length
+LENGTH = 5000                      # Total sequence length
     # LENGTH = 50_000 # Stage 3 scaling for final experiments, needs finetuning
 MEAN_GC_CONTENT = 0.50              # Mean GC across the whole sequence
 GC_WINDOW_SIZE = int(LENGTH / 20)   # GC is assigned per window
@@ -72,13 +72,13 @@ MAX_TIME_SEC = 60.0
 RS_NUM_SAMPLES = 10_000
 
 # --- Simulated Annealing Specific ---
-SA_INITIAL_TEMP = 10.0
-SA_COOLING_RATE = 0.995
-SA_MIN_TEMP = 1e-3
-SA_NEIGHBORHOOD = "swap"
+SA_INITIAL_TEMP = 100.0
+SA_COOLING_RATE = 0.999
+SA_MIN_TEMP = 1e-6
+SA_NEIGHBORHOOD = "swap"  # "swap" or "insert"
 
 # --- Genetic Algorithm Specific ---
-GA_POP_SIZE = 100
+GA_POP_SIZE = 10
 GA_NUM_GENERATIONS = 400
 GA_MUTATION_RATE = 0.025
 GA_CROSSOVER_RATE = 0.8
