@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Genetic Algorithm for DNA Fragment Assembly
-Author: Inés Calvo Esteva
-Date: 2026-04-01
 """
-
+# Load libraries
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -21,18 +19,18 @@ from model.config import (
 
 print("Import done")
 
-# ------------------------
+
 # GA PARAMETERS
-# ------------------------
+
 POP_SIZE = GA_POP_SIZE
 CROSSOVER_RATE = GA_CROSSOVER_RATE
 MUTATION_RATE = GA_MUTATION_RATE
 NUM_GENERATIONS = GA_NUM_GENERATIONS
 ELITISM = GA_ELITISM
 
-# ------------------------
+
 # HELPER FUNCTIONS
-# ------------------------
+
 def calculate_fitness(solution, problem):
     return problem.evaluate(solution)
 
@@ -60,9 +58,9 @@ def mutate(solution, rng):
     return mutated
 
 
-# ------------------------
+
 # MAIN GA FUNCTION
-# ------------------------
+
 print("Calculating GA function")
 
 def genetic_algorithm(problem):
@@ -86,7 +84,7 @@ def genetic_algorithm(problem):
         best_idx = np.argmin(fitness_scores)
         best_sol = population[best_idx]
 
-        # ✅ Metrics WITHOUT touching evaluate()
+        # Metrics
         contigs_history.append(problem.count_contigs(best_sol))
         overlap_history.append(problem.total_overlap(best_sol))
 
@@ -142,9 +140,9 @@ def genetic_algorithm(problem):
     }
 
 
-# ------------------------
+
 # RUN SCRIPT
-# ------------------------
+
 if __name__ == "__main__":
     print("Loading fragments...")
     fragments = load_fragments("data/fasta/fragments.fasta")
@@ -158,9 +156,9 @@ if __name__ == "__main__":
     print(f"Number of fragments: {problem.n}")
     print(f"Fragment IDs order: {result['best_solution']}")
 
-    # ------------------------
-    # PLOTS
-    # ------------------------
+    
+    # Plotting of the results
+    
 
     # 1. Cost convergence
     plt.figure()
