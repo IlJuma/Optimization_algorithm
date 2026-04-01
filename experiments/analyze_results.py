@@ -35,11 +35,19 @@ def plot_metric_convergence(results, metric_key, title, ylabel, filename, oracle
             continue
             
         history = res.get(metric_key, [])
+        total_evals = res.get("evaluations", len(history)) # Get the true evaluation count
         
         if history:
             has_data = True
             color = COLORS.get(method, "#333333")
-            plt.plot(history, label=method, color=color, linewidth=2.5, alpha=0.9)
+            
+            # fix for GA
+            # This generates a mathematically spaced X-axis. 
+            # If GA has 200 history items but did 10,000 evals, this correctly 
+            # spaces the points at 50, 100, 150... up to 10,000
+            x_axis = np.linspace(1, total_evals, len(history))
+            
+            plt.plot(x_axis, history, label=method, color=color, linewidth=2.5, alpha=0.9)
             
     if not has_data:
         plt.close()
