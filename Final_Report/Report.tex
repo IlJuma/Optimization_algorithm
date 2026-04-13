@@ -1,0 +1,80 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{siunitx}
+\usepackage{float}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{longtable}
+\usepackage{csquotes}
+\usepackage{setspace}
+\usepackage{biblatex}
+\addbibresource{Report.bib}
+
+\geometry{top=2.54cm,bottom=2.54cm,left=2.54cm,right=2.54cm}
+\setstretch{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+\sisetup{per-mode=symbol, separate-uncertainty=true}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{\thesubsubsection}{1em}{}
+
+% Title page
+\title{
+    \textbf{Optimization Algorithm And Bio-inspired Report Algorithms} \\[0.3cm]
+    \large DNA Sequence Optimization
+}
+
+\author{
+    Giovanni Ceresa, Ines Calvo, Remco Croefcoer, Alex Zimmermann
+}
+\date{14 Apr 2026}
+
+\begin{document}
+
+\maketitle
+\vspace{10cm}
+\begin{abstract}
+
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+Something
+
+\section{Material and Methods}
+\subsection{Material}
+\subsection{Methods}
+\subsubsection{Random Search}
+\subsubsection{Simulated Annealing}
+\section{Results}
+\subsubsection{Spacing and Units}
+\subsubsection{Graphical Representations}
+\begin{figure}[H]
+\centering
+\fbox{\rule{0pt}{5cm}\rule{0.8\textwidth}{0pt}}
+\caption{Course of the dissolved oxygen concentration (\(pO_2\)) over time.}
+\label{fig:oxygen}
+\end{figure}
+
+\section{Discussion}
+Qualitative and comparative interpretation of results.
+
+\section{Conclusion and Outlook}
+Brief summary and future applications.
+
+\end{document}
