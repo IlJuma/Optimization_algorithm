@@ -6,6 +6,17 @@ genomic placement and evaluate coverage along the reference genome. Computes
 coverage profiles, detects gaps and contigs, and generates reports and plots
 for both fragment-level (physical) and read-level (sequenced) coverage.
 
+Fragment orientation note
+-------------------------
+Stored fragment orientation does not change reference placement for coverage.
+Coverage is reconstructed from truth intervals:
+    frag_start, frag_end
+and for reads:
+    read_start, read_end
+
+So fragment orientation metadata can be ignored for interval-based coverage
+evaluation.
+
 Inputs
 ------
 fragments : List[FragmentRecord]
@@ -130,6 +141,7 @@ def read_single_fasta(path: str) -> Tuple[str, str]:
 
     return header, "".join(seq_parts).upper()
 
+
 # =========================
 # COVERAGE / INTERVAL LOGIC
 # =========================
@@ -236,6 +248,7 @@ def coverage_stats(coverage: List[int]) -> Dict[str, float]:
         "min_coverage": min_coverage,
         "max_coverage": max_coverage,
     }
+
 
 # =========================
 # OUTPUT
@@ -369,7 +382,7 @@ def write_coverage_plot(path: str, coverage: List[int], target_bins: int, title:
     plt.figure(figsize=(PLOT_WIDTH, PLOT_HEIGHT))
 
     for i in range(len(x) - 1):
-        if has_gap[i] or has_gap[i + 1]:
+        if has_gap[i] and has_gap[i + 1]:
             color = "red"
         else:
             color = "blue"
@@ -389,6 +402,7 @@ def write_coverage_plot(path: str, coverage: List[int], target_bins: int, title:
     plt.tight_layout()
     plt.savefig(path, dpi=PLOT_DPI)
     plt.close()
+
 
 # =========================
 # MAIN

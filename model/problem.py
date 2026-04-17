@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .data_loader_frag import FragmentRecord
+from .data_loader_frag import (
+    FragmentRecord,
+    split_oriented_fragment_id,
+    oriented_fragment_sequence,
+)
 
 
 # =========================
@@ -110,30 +114,18 @@ class AssemblyProblem:
     """
     AssemblyProblem defines the scoring model for fragment ordering.
 
-    It encapsulates a specific set of DNA fragments and provides methods to
-    evaluate candidate solutions (orderings of fragment IDs) based on
-    sequence overlap.
+    Orientation convention:
+    - A solution is a list of oriented fragment ids:
+        <fragment_id>_F  -> stored fragment sequence as loaded from fragments.fasta
+        <fragment_id>_R  -> reverse complement of the stored fragment sequence
 
     Key ideas:
-    - A solution is a list of fragment_ids representing an ordering
-    - Adjacent fragments are scored using suffix-prefix overlap
+    - Each base fragment must appear exactly once in a solution, with either _F or _R
+    - Adjacent oriented fragments are scored using suffix-prefix overlap
     - Valid overlaps (>= MIN_OVERLAP) reduce cost
     - Invalid or weak overlaps are treated as contig breaks and penalized
       with P = BREAK_FACTOR * min(fragment lengths)
     - Partial overlaps below threshold receive a reduced penalty
-
-    Performance:
-    - For small datasets, pairwise edge information is precomputed (dense)
-    - For larger datasets, edges are computed lazily and cached (sparse)
-
-    Usage:
-        fragments = load_fragments()
-        problem = AssemblyProblem(fragments)
-
-        solution = [...]  # list of fragment_ids
-        score = problem.evaluate(solution)
-
-    Lower scores indicate better assemblies (fewer breaks, larger overlaps).
     """
 
     def __init__(
@@ -146,8 +138,18 @@ class AssemblyProblem:
         max_neighbors_per_fragment=MAX_NEIGHBORS_PER_FRAGMENT,
     ):
         self.fragments = fragments
-        self.fragment_ids = [f.fragment_id for f in fragments]
-        self.n = len(fragments)
+
+        self.base_fragment_ids = [f.fragment_id for f in fragments]
+        self.fragment_ids = self.base_fragment_ids.copy()  # compatibility with older code
+        self.oriented_fragment_ids = [
+            f"{fragment_id}_{orientation}"
+            for fragment_id in self.base_fragment_ids
+            for orientation in ["F", "R"]
+        ]
+
+        self.n_fragments = len(fragments)
+        self.n_oriented_fragments = len(self.oriented_fragment_ids)
+        self.n = self.n_fragments  # compatibility with older code
 
         self.dense_threshold = dense_threshold
         self.min_overlap = min_overlap
@@ -155,15 +157,15 @@ class AssemblyProblem:
         self.partial_overlap_factor = partial_overlap_factor
         self.max_neighbors_per_fragment = max_neighbors_per_fragment
 
-        self.use_dense = self.n <= self.dense_threshold
+        self.use_dense = self.n_fragments <= self.dense_threshold
 
         self.fragment_by_id = {
             f.fragment_id: f for f in fragments
         }
         self.id_to_index = {
-            f.fragment_id: i for i, f in enumerate(fragments)
+            oriented_id: i for i, oriented_id in enumerate(self.oriented_fragment_ids)
         }
-        self.index_to_id = self.fragment_ids.copy()
+        self.index_to_id = self.oriented_fragment_ids.copy()
 
         # Dense storage
         self.edge_matrix = None
@@ -176,16 +178,65 @@ class AssemblyProblem:
             self._precompute_dense()
 
     # =========================
+    # ORIENTATION HELPERS
+    # =========================
+
+    def base_fragment_id(self, oriented_fragment_id):
+        fragment_id, _ = split_oriented_fragment_id(oriented_fragment_id)
+        return fragment_id
+
+    def oriented_sequence(self, oriented_fragment_id):
+        fragment_id, orientation = split_oriented_fragment_id(oriented_fragment_id)
+        fragment = self.fragment_by_id[fragment_id]
+        return oriented_fragment_sequence(fragment, orientation)
+
+    def validate_solution(self, solution):
+        """
+        Check that a solution uses each base fragment exactly once.
+        """
+        if len(solution) != self.n_fragments:
+            return False
+
+        seen = set()
+        for oriented_id in solution:
+            base_id = self.base_fragment_id(oriented_id)
+            if base_id in seen:
+                return False
+            seen.add(base_id)
+
+        return len(seen) == self.n_fragments
+
+    # =========================
     # EDGE COMPUTATION
     # =========================
 
+    def _break_penalty(self, left_id, right_id):
+        left_base = self.base_fragment_id(left_id)
+        right_base = self.base_fragment_id(right_id)
+
+        left = self.fragment_by_id[left_base]
+        right = self.fragment_by_id[right_base]
+        L = min(left.frag_len, right.frag_len)
+
+        return self.break_factor * L
+
     def _compute_edge(self, left_id, right_id):
-        left = self.fragment_by_id[left_id]
-        right = self.fragment_by_id[right_id]
+        left_base = self.base_fragment_id(left_id)
+        right_base = self.base_fragment_id(right_id)
+
+        if left_base == right_base:
+            return EdgeInfo(
+                overlap=0,
+                feasible=False,
+                cost=self._break_penalty(left_id, right_id),
+            )
+
+        left_seq = self.oriented_sequence(left_id)
+        right_seq = self.oriented_sequence(right_id)
 
         return overlap_edge_info(
-            left=left.sequence,
-            right=right.sequence,
+            left=left_seq,
+            right=right_seq,
             min_overlap=self.min_overlap,
             break_factor=self.break_factor,
             partial_overlap_factor=self.partial_overlap_factor,
@@ -193,12 +244,12 @@ class AssemblyProblem:
 
     def _precompute_dense(self):
         self.edge_matrix = [
-            [None for _ in range(self.n)]
-            for _ in range(self.n)
+            [None for _ in range(self.n_oriented_fragments)]
+            for _ in range(self.n_oriented_fragments)
         ]
 
-        for i, left_id in enumerate(self.fragment_ids):
-            for j, right_id in enumerate(self.fragment_ids):
+        for i, left_id in enumerate(self.oriented_fragment_ids):
+            for j, right_id in enumerate(self.oriented_fragment_ids):
                 self.edge_matrix[i][j] = self._compute_edge(left_id, right_id)
 
     # =========================
@@ -226,41 +277,40 @@ class AssemblyProblem:
     def is_edge_feasible(self, left_id, right_id):
         return self.pair_info(left_id, right_id).feasible
 
-    def get_neighbors(self, fragment_id):
+    def get_neighbors(self, oriented_fragment_id):
         """
-        Return fragments that can follow this fragment in the same contig
-        (i.e. overlap ≥ MIN_OVERLAP).
-
-        Dense mode:
-            returns all feasible neighbors
-
-        Sparse mode:
-            lazily computes candidates and caches top neighbors
+        Return oriented fragments that can follow this oriented fragment in the
+        same contig (i.e. overlap >= MIN_OVERLAP), excluding both orientations
+        of the same base fragment.
         """
         if self.use_dense:
             neighbors = []
-            for other_id in self.fragment_ids:
-                if other_id == fragment_id:
+            left_base = self.base_fragment_id(oriented_fragment_id)
+
+            for other_id in self.oriented_fragment_ids:
+                if self.base_fragment_id(other_id) == left_base:
                     continue
-                if self.is_edge_feasible(fragment_id, other_id):
+                if self.is_edge_feasible(oriented_fragment_id, other_id):
                     neighbors.append(other_id)
             return neighbors
 
-        if fragment_id in self.neighbor_cache:
-            return self.neighbor_cache[fragment_id]
+        if oriented_fragment_id in self.neighbor_cache:
+            return self.neighbor_cache[oriented_fragment_id]
 
         candidates = []
-        for other_id in self.fragment_ids:
-            if other_id == fragment_id:
+        left_base = self.base_fragment_id(oriented_fragment_id)
+
+        for other_id in self.oriented_fragment_ids:
+            if self.base_fragment_id(other_id) == left_base:
                 continue
 
-            edge = self.pair_info(fragment_id, other_id)
+            edge = self.pair_info(oriented_fragment_id, other_id)
             if edge.feasible:
                 candidates.append((other_id, edge.cost))
 
         candidates.sort(key=lambda x: x[1])
-        neighbors = [frag_id for frag_id, _ in candidates[:self.max_neighbors_per_fragment]]
-        self.neighbor_cache[fragment_id] = neighbors
+        neighbors = [fragment_id for fragment_id, _ in candidates[:self.max_neighbors_per_fragment]]
+        self.neighbor_cache[oriented_fragment_id] = neighbors
         return neighbors
 
     # =========================
@@ -269,7 +319,7 @@ class AssemblyProblem:
 
     def evaluate(self, solution):
         """
-        Evaluate a full permutation.
+        Evaluate a full permutation of oriented fragment ids.
 
         Lower is better.
         """

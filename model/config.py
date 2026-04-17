@@ -15,7 +15,6 @@ MIN_GC = 0.20                       # Clamp local GC to this minimum
 MAX_GC = 0.80                       # Clamp local GC to this maximum
 MAX_HOMOPOLYMER = 10                # Max allowed homopolymer length (None to disable)
 
-
 # --- fragment_chromosome ---
 N_GENOME_COPIES = 80                # Number of independent genome molecules to fragment
     # N_GENOME_COPIES = 50 # Stage 3 scaling for final experiments, needs finetuning
@@ -25,6 +24,7 @@ MAX_INSERT_SIZE = 450               # Size selection after fragmentation
 RECOVERY_FRACTION = 0.25            # Recovery / sampling after size selection
 MAX_FRAGMENTS_TO_KEEP = None        # Optional additional sampling cap
 FASTA_LINE_WIDTH = 80
+RANDOMIZE_FRAGMENT_ORIENTATION = True   # Randomly flip about 50% of recovered fragments into reverse complements
 
 # --- simulate_illumina ---
 PAIRED_END = True
@@ -49,6 +49,7 @@ PARTIAL_OVERLAP_FACTOR = 1  # Reduces break penalty when 0 < overlap < MIN_OVERL
 #   - Higher upfront cost: O(n^2) time and memory
 
 DENSE_THRESHOLD = 200  # Threshold for switching between dense and sparse edge evaluation.
+
 # Sparse mode (n > DENSE_THRESHOLD):
 #   - Edge information is computed lazily (on demand) and cached
 #   - Only edges actually queried by the algorithm are evaluated

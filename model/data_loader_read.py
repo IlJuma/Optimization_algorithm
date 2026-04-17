@@ -24,6 +24,7 @@ read_data : LoadedReadData
             - copy : Optional[int]
             - frag_start : Optional[int]
             - frag_end : Optional[int]
+            - fragment_orientation : Optional[str]
             - read_start : Optional[int]
             - read_end : Optional[int]
 
@@ -39,7 +40,7 @@ reads_df : pd.DataFrame
         ["read_id", "pair_id", "mate",
          "sequence", "quality", "read_length",
          "fragment_id", "source", "copy",
-         "frag_start", "frag_end",
+         "frag_start", "frag_end", "fragment_orientation",
          "read_start", "read_end"]
 
 Typical variable names
@@ -85,6 +86,7 @@ class ReadRecord:
     copy: Optional[int] = None
     frag_start: Optional[int] = None
     frag_end: Optional[int] = None
+    fragment_orientation: Optional[str] = None
     read_start: Optional[int] = None
     read_end: Optional[int] = None
 
@@ -187,6 +189,7 @@ def load_reads_from_fastq(path: str) -> List[ReadRecord]:
                 copy=copy,
                 frag_start=frag_start,
                 frag_end=frag_end,
+                fragment_orientation=meta.get("fragment_orientation"),
                 read_start=read_start,
                 read_end=read_end,
             )
@@ -248,6 +251,7 @@ def reads_to_dataframe(reads: List[ReadRecord]) -> pd.DataFrame:
                 "copy": r.copy,
                 "frag_start": r.frag_start,
                 "frag_end": r.frag_end,
+                "fragment_orientation": r.fragment_orientation,
                 "read_start": r.read_start,
                 "read_end": r.read_end,
             }
