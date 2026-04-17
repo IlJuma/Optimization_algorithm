@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 # PARAMETERS
 # =========================
 
-INPUT_FASTA = "data/fasta/fragments.fasta"          # Output from script #2
+INPUT_FASTA = "data/fasta/fragments.fasta"          # Output from fragment_chromosome.py
 OUTPUT_FASTQ_R1 = "data/fastq/reads_R1.fastq"
 OUTPUT_FASTQ_R2 = "data/fastq/reads_R2.fastq"
 OUTPUT_REPORT = "reports/sequencing_report.txt"
@@ -62,6 +62,7 @@ def read_fasta_records(path: str) -> List[Dict]:
                     meta["frag_end"] = int(meta["frag_end"])
                     meta["frag_len"] = int(meta["frag_len"])
                     meta["copy"] = int(meta["copy"])
+                    meta["orientation"] = meta.get("orientation", "F")
                     records.append(meta)
 
                 header = line[1:]
@@ -76,6 +77,7 @@ def read_fasta_records(path: str) -> List[Dict]:
         meta["frag_end"] = int(meta["frag_end"])
         meta["frag_len"] = int(meta["frag_len"])
         meta["copy"] = int(meta["copy"])
+        meta["orientation"] = meta.get("orientation", "F")
         records.append(meta)
 
     return records
@@ -208,6 +210,7 @@ def make_read_header(
         f"copy={fragment['copy']} "
         f"frag_start={fragment['frag_start']} "
         f"frag_end={fragment['frag_end']} "
+        f"fragment_orientation={fragment['orientation']} "
         f"read_start={read_start} "
         f"read_end={read_end} "
         f"mate={mate}"

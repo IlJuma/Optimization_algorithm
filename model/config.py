@@ -15,7 +15,6 @@ MIN_GC = 0.20                       # Clamp local GC to this minimum
 MAX_GC = 0.80                       # Clamp local GC to this maximum
 MAX_HOMOPOLYMER = 10                # Max allowed homopolymer length (None to disable)
 
-
 # --- fragment_chromosome ---
 N_GENOME_COPIES = 80                # Number of independent genome molecules to fragment
     # N_GENOME_COPIES = 50 # Stage 3 scaling for final experiments, needs finetuning
@@ -25,6 +24,7 @@ MAX_INSERT_SIZE = 450               # Size selection after fragmentation
 RECOVERY_FRACTION = 0.25            # Recovery / sampling after size selection
 MAX_FRAGMENTS_TO_KEEP = None        # Optional additional sampling cap
 FASTA_LINE_WIDTH = 80
+RANDOMIZE_FRAGMENT_ORIENTATION = True   # Randomly flip about 50% of recovered fragments into reverse complements
 
 # --- simulate_illumina ---
 PAIRED_END = True
@@ -49,6 +49,7 @@ PARTIAL_OVERLAP_FACTOR = 1  # Reduces break penalty when 0 < overlap < MIN_OVERL
 #   - Higher upfront cost: O(n^2) time and memory
 
 DENSE_THRESHOLD = 200  # Threshold for switching between dense and sparse edge evaluation.
+
 # Sparse mode (n > DENSE_THRESHOLD):
 #   - Edge information is computed lazily (on demand) and cached
 #   - Only edges actually queried by the algorithm are evaluated
@@ -65,21 +66,21 @@ MAX_NEIGHBORS_PER_FRAGMENT = 50  # Maximum number of best (lowest-cost) feasible
 
 # --- Shared Evaluation Budget ---
 # Every algorithm MUST stop when it hits one of these limits
-MAX_EVALUATIONS = 10_000
+MAX_EVALUATIONS = 15_000
 MAX_TIME_SEC = 60.0
 
 # --- Random Search Specific ---
 RS_NUM_SAMPLES = 10_000
 
 # --- Simulated Annealing Specific ---
-SA_INITIAL_TEMP = 10.0
-SA_COOLING_RATE = 0.999
-SA_MIN_TEMP = 1e-6
+SA_INITIAL_TEMP = 100.0
+SA_COOLING_RATE = 0.9995
+SA_MIN_TEMP = 1e-4
 SA_NEIGHBORHOOD = "swap"
 
 # --- Genetic Algorithm Specific ---
-GA_POP_SIZE = 100
-GA_NUM_GENERATIONS = 400
-GA_MUTATION_RATE = 0.025
+GA_POP_SIZE = 30
+GA_NUM_GENERATIONS = 500  # (15,000 max evals / 30 pop = 500)
+GA_MUTATION_RATE = 0.5
 GA_CROSSOVER_RATE = 0.8
 GA_ELITISM = 2

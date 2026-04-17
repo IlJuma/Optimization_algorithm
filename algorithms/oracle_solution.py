@@ -4,8 +4,13 @@ Oracle solution module.
 Provides a ground-truth baseline for fragment ordering based on known
 genomic coordinates from the simulation pipeline.
 
-This acts as a reference solution against which optimization algorithms
-(random search, simulated annealing, GA) can be compared.
+Orientation convention
+----------------------
+The oracle uses:
+    <fragment_id>_F
+
+where _F means the stored fragment sequence exactly as loaded from
+fragments.fasta.
 """
 
 from model.data_loader_frag import load_fragments
@@ -25,14 +30,14 @@ def build_oracle_permutation(fragments):
         2. frag_end (secondary)
         3. fragment_id (tie-breaker)
 
-    Returns:
-        List[str] : ordered fragment_ids
+    The oracle uses the stored fragment orientation:
+        <fragment_id>_F
     """
     ordered = sorted(
         fragments,
         key=lambda f: (f.frag_start, f.frag_end, f.fragment_id)
     )
-    return [f.fragment_id for f in ordered]
+    return [f"{fragment.fragment_id}_F" for fragment in ordered]
 
 
 def evaluate_oracle(problem, fragments):
@@ -53,12 +58,15 @@ def evaluate_oracle(problem, fragments):
         "method": "Oracle Ground Truth",
         "best_solution": solution,
         "best_score": score,
-        "history": [score],          # single evaluation
+        "history": [score],
         "evaluations": 1,
         "runtime_sec": 0.0,
         "best_breaks": breaks,
         "best_contigs": contigs,
         "best_total_overlap": total_overlap,
+        "breaks": breaks,
+        "contigs": contigs,
+        "total_overlap": total_overlap,
     }
 
 
@@ -95,7 +103,7 @@ if __name__ == "__main__":
     result = oracle_solution(problem=problem, fragments=fragments)
 
     print("Oracle evaluation:")
-    print(f"Fragments: {problem.n}")
+    print(f"Fragments: {problem.n_fragments}")
     print(f"Score: {result['best_score']:.2f}")
     print(f"Breaks: {result['best_breaks']}")
     print(f"Contigs: {result['best_contigs']}")

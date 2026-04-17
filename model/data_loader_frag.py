@@ -6,6 +6,18 @@ FragmentRecord objects and optional pandas DataFrames. Includes full ground-trut
 metadata (positions, copy index) for downstream evaluation, but can also be used
 to provide reduced views for optimization algorithms.
 
+Orientation convention
+----------------------
+Each loaded fragment record stores the fragment sequence exactly as written in
+fragments.fasta, together with its stored orientation metadata:
+
+    orientation = "F" or "R"
+
+For algorithmic orientation handling, two oriented fragment states can be derived:
+
+    <fragment_id>_F : stored fragment sequence as loaded from fragments.fasta
+    <fragment_id>_R : reverse complement of the stored fragment sequence
+
 Outputs
 -------
 fragments : List[FragmentRecord]
@@ -16,12 +28,14 @@ fragments : List[FragmentRecord]
         - frag_start : int
         - frag_end : int
         - frag_len : int
+        - orientation : str
         - sequence : str
 
 fragments_df : pd.DataFrame
     Columns:
         ["fragment_id", "source", "copy",
-         "frag_start", "frag_end", "frag_len", "sequence"]
+         "frag_start", "frag_end", "frag_len",
+         "orientation", "sequence"]
 
 Typical variable names
 ----------------------
@@ -56,6 +70,7 @@ class FragmentRecord:
     frag_start: int
     frag_end: int
     frag_len: int
+    orientation: str
     sequence: str
 
 
@@ -99,6 +114,15 @@ def read_fasta_records(path: str) -> List[Tuple[str, str]]:
 
 
 # =========================
+# BASIC DNA UTILITIES
+# =========================
+
+def reverse_complement(seq: str) -> str:
+    table = str.maketrans("ACGT", "TGCA")
+    return seq.translate(table)[::-1]
+
+
+# =========================
 # FRAGMENT LOADING
 # =========================
 
@@ -117,6 +141,7 @@ def load_fragments(fragments_fasta: str = DEFAULT_FRAGMENTS_FASTA) -> List[Fragm
                 frag_start=int(meta["frag_start"]),
                 frag_end=int(meta["frag_end"]),
                 frag_len=int(meta["frag_len"]),
+                orientation=meta.get("orientation", "F"),
                 sequence=seq,
             )
         )
@@ -134,11 +159,65 @@ def fragments_to_dataframe(fragments: List[FragmentRecord]) -> pd.DataFrame:
                 "frag_start": f.frag_start,
                 "frag_end": f.frag_end,
                 "frag_len": f.frag_len,
+                "orientation": f.orientation,
                 "sequence": f.sequence,
             }
             for f in fragments
         ]
     )
+
+
+def make_oriented_fragment_id(fragment_id: str, orientation_suffix: str) -> str:
+    return f"{fragment_id}_{orientation_suffix}"
+
+
+def split_oriented_fragment_id(oriented_fragment_id: str) -> Tuple[str, str]:
+    if oriented_fragment_id.endswith("_F"):
+        return oriented_fragment_id[:-2], "F"
+    if oriented_fragment_id.endswith("_R"):
+        return oriented_fragment_id[:-2], "R"
+    raise ValueError(f"Invalid oriented fragment id: {oriented_fragment_id}")
+
+
+def oriented_fragment_sequence(fragment: FragmentRecord, orientation_suffix: str) -> str:
+    """
+    Orientation convention:
+        - F = stored fragment sequence as loaded from fragments.fasta
+        - R = reverse complement of the stored fragment sequence
+    """
+    if orientation_suffix == "F":
+        return fragment.sequence
+    if orientation_suffix == "R":
+        return reverse_complement(fragment.sequence)
+    raise ValueError(f"Invalid orientation suffix: {orientation_suffix}")
+
+
+def expand_fragments_with_orientations(fragments: List[FragmentRecord]) -> List[Dict[str, object]]:
+    """
+    Create algorithm-facing oriented fragment states.
+
+    Returns one forward and one reverse state for every loaded fragment:
+        <fragment_id>_F
+        <fragment_id>_R
+    """
+    expanded = []
+
+    for fragment in fragments:
+        for suffix in ["F", "R"]:
+            expanded.append({
+                "oriented_fragment_id": make_oriented_fragment_id(fragment.fragment_id, suffix),
+                "fragment_id": fragment.fragment_id,
+                "state_orientation": suffix,
+                "stored_orientation": fragment.orientation,
+                "source": fragment.source,
+                "copy": fragment.copy,
+                "frag_start": fragment.frag_start,
+                "frag_end": fragment.frag_end,
+                "frag_len": fragment.frag_len,
+                "sequence": oriented_fragment_sequence(fragment, suffix),
+            })
+
+    return expanded
 
 
 def export_fragments_dataframe(

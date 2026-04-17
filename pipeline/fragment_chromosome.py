@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 # PARAMETERS
 # =========================
 
-INPUT_FASTA = "data/fasta/simulated_chromosome.fasta"         # Output from script #1
+INPUT_FASTA = "data/fasta/simulated_chromosome.fasta"         # Output from generate_chromosome.py
 OUTPUT_FASTA = "data/fasta/fragments.fasta"
 OUTPUT_REPORT = "reports/fragments_report.txt"
 
@@ -28,6 +28,7 @@ RECOVERY_FRACTION = 0.25
 MAX_FRAGMENTS_TO_KEEP = None
 
 FASTA_LINE_WIDTH = 80
+RANDOMIZE_FRAGMENT_ORIENTATION = True
 
 
 # =========================
@@ -56,7 +57,7 @@ def read_fasta(path: str) -> Tuple[str, str]:
     return header, seq
 
 
-def write_fasta(fragments: List[Dict], path: str, genome_seq: str) -> None:
+def write_fasta(fragments: List[Dict], path: str) -> None:
     with open(path, "w") as f:
         for frag in fragments:
             header = (
@@ -65,13 +66,23 @@ def write_fasta(fragments: List[Dict], path: str, genome_seq: str) -> None:
                 f"copy={frag['copy_index']} "
                 f"frag_start={frag['start']} "
                 f"frag_end={frag['end']} "
-                f"frag_len={frag['length']}"
+                f"frag_len={frag['length']} "
+                f"orientation={frag['orientation']}"
             )
             f.write(header + "\n")
 
-            seq = genome_seq[frag["start"]:frag["end"]]
+            seq = frag["sequence"]
             for j in range(0, len(seq), FASTA_LINE_WIDTH):
                 f.write(seq[j:j + FASTA_LINE_WIDTH] + "\n")
+
+
+# =========================
+# BASIC DNA UTILITIES
+# =========================
+
+def reverse_complement(seq: str) -> str:
+    table = str.maketrans("ACGT", "TGCA")
+    return seq.translate(table)[::-1]
 
 
 # =========================
@@ -129,6 +140,7 @@ def circular_shift_interval(
 
 def apply_random_circular_shift(
     fragments: List[Dict],
+    genome_seq: str,
     genome_length: int,
     rng: random.Random,
 ) -> List[Dict]:
@@ -160,10 +172,42 @@ def apply_random_circular_shift(
                 "start": new_start,
                 "end": new_end,
                 "length": new_end - new_start,
-                "sequence": frag["sequence"],
+                "sequence": genome_seq[new_start:new_end],
+                "orientation": "F",
             })
 
     return shifted_fragments
+
+
+def randomize_fragment_orientations(
+    fragments: List[Dict],
+    rng: random.Random,
+    randomize_orientation: bool,
+) -> List[Dict]:
+    """
+    Randomly flip about 50% of recovered fragments into their reverse complements.
+
+    Orientation convention:
+        - F = stored fragment sequence as written to fragments.fasta
+        - R = reverse complement of the forward genomic slice
+    """
+    if not randomize_orientation:
+        return fragments
+
+    randomized = []
+
+    for frag in fragments:
+        new_frag = frag.copy()
+
+        if rng.random() < 0.5:
+            new_frag["sequence"] = reverse_complement(new_frag["sequence"])
+            new_frag["orientation"] = "R"
+        else:
+            new_frag["orientation"] = "F"
+
+        randomized.append(new_frag)
+
+    return randomized
 
 
 def fragment_one_copy(
@@ -189,10 +233,12 @@ def fragment_one_copy(
             "end": end,
             "length": end - start,
             "sequence": seq[start:end],
+            "orientation": "F",
         })
 
     fragments = apply_random_circular_shift(
         fragments=fragments,
+        genome_seq=seq,
         genome_length=len(seq),
         rng=rng,
     )
@@ -205,15 +251,10 @@ def size_select_fragments(
     min_insert_size: int,
     max_insert_size: int,
 ) -> List[Dict]:
-    selected = [
+    return [
         frag for frag in fragments
         if min_insert_size <= frag["length"] <= max_insert_size
     ]
-
-    for frag in selected:
-        frag["sequence"] = None
-
-    return selected
 
 
 def recover_fragments(
@@ -249,6 +290,7 @@ def simulate_library(
     recovery_fraction: float,
     rng: random.Random,
     max_fragments_to_keep: int = None,
+    randomize_fragment_orientation: bool = True,
 ) -> Tuple[List[Dict], dict]:
     all_generated = []
     all_selected = []
@@ -271,6 +313,12 @@ def simulate_library(
         recovery_fraction=recovery_fraction,
         rng=rng,
         max_fragments_to_keep=max_fragments_to_keep,
+    )
+
+    recovered = randomize_fragment_orientations(
+        fragments=recovered,
+        rng=rng,
+        randomize_orientation=randomize_fragment_orientation,
     )
 
     recovered = assign_fragment_ids(recovered, genome_header)
@@ -316,6 +364,9 @@ def write_report(path: str, stats: dict, fragments: List[Dict]) -> None:
         if stats["genome_length"] > 0 else 0.0
     )
 
+    n_forward = sum(1 for f in fragments if f["orientation"] == "F")
+    n_reverse = sum(1 for f in fragments if f["orientation"] == "R")
+
     with open(path, "w") as f:
         f.write("Fragmentation simulation report\n")
         f.write("==============================\n\n")
@@ -323,7 +374,9 @@ def write_report(path: str, stats: dict, fragments: List[Dict]) -> None:
         f.write(f"Genome copies fragmented: {stats['n_genome_copies']}\n")
         f.write(f"Fragments generated before size selection: {stats['generated_fragments']}\n")
         f.write(f"Fragments passing size selection: {stats['size_selected_fragments']}\n")
-        f.write(f"Fragments recovered after random sampling: {stats['recovered_fragments']}\n\n")
+        f.write(f"Fragments recovered after random sampling: {stats['recovered_fragments']}\n")
+        f.write(f"Stored forward-oriented fragments: {n_forward}\n")
+        f.write(f"Stored reverse-oriented fragments: {n_reverse}\n\n")
         f.write("Recovered fragment length summary\n")
         f.write("--------------------------------\n")
         f.write(f"Count: {summary['count']}\n")
@@ -353,9 +406,10 @@ def main() -> None:
         recovery_fraction=RECOVERY_FRACTION,
         rng=rng,
         max_fragments_to_keep=MAX_FRAGMENTS_TO_KEEP,
+        randomize_fragment_orientation=RANDOMIZE_FRAGMENT_ORIENTATION,
     )
 
-    write_fasta(fragments, OUTPUT_FASTA, genome_seq)
+    write_fasta(fragments, OUTPUT_FASTA)
     write_report(OUTPUT_REPORT, stats, fragments)
 
     print(f"Input FASTA: {INPUT_FASTA}")

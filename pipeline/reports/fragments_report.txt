@@ -6,6 +6,8 @@ Genome copies fragmented: 80
 Fragments generated before size selection: 1267
 Fragments passing size selection: 264
 Fragments recovered after random sampling: 69
+Stored forward-oriented fragments: 38
+Stored reverse-oriented fragments: 31
 
 Recovered fragment length summary
 --------------------------------

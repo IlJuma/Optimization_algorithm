@@ -47,7 +47,8 @@ def main():
     
     # 4 Run Simulated Annealing
     print("\nRunning Simulated Annealing...")
-    sa_result = simulated_annealing.optimize(problem, config, rng)
+    # FIX: Explicitly name the arguments so it doesn't get confused
+    sa_result = simulated_annealing.optimize(problem=problem, config=config, rng=rng) 
     results.append(sa_result)
     
     # 5 Run Genetic Algorithm
