@@ -123,7 +123,7 @@ def optimize(
     max_iterations=10000,
     pair_indices=None,
     seed=42,
-    verbose=True,
+    verbose=False,
     log_interval=500,
     early_stop_temperature=1e-6,
 ):
@@ -315,13 +315,3 @@ if __name__ == "__main__":
 
     result = optimize(problem=problem)
 
-    print("\n" + "=" * 70)
-    print("BEST SOLUTION FOUND")
-    print("=" * 70)
-    print(f"Fragments: {problem.n_fragments}")
-    print(f"Best cost: {result['best_cost']:.2f}")
-    print(f"Breaks: {result['best_breaks']}")
-    print(f"Contigs: {result['best_contigs']}")
-    print(f"Total overlap: {result['best_total_overlap']}")
-    print("Best solution (fragment IDs):")
-    print(result["best_solution"])

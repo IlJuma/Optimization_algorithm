@@ -73,10 +73,18 @@ MAX_TIME_SEC = 60.0
 RS_NUM_SAMPLES = 10_000
 
 # --- Simulated Annealing Specific ---
-SA_INITIAL_TEMP = 10.0
-SA_COOLING_RATE = 0.995
+SA_INITIAL_TEMP = 1.0
+SA_COOLING_RATE = 0.999
 SA_MIN_TEMP = 1e-3
 SA_NEIGHBORHOOD = "swap"
+
+# Optimization Simulated Annealing Specific
+SWEEP_OPT = False # this was for the comparison, it will "break" the comparison graph
+OPT_SA_INITIAL_TEMP =[1.0, 10.0, 20.0]
+OPT_SA_COOLING_RATE = [0.95, 0.99, 0.999]
+OPT_SA_MIN_TEMP = 1e-12
+OPT_SA_NEIGHBORHOOD = "swap"
+
 
 # --- Genetic Algorithm Specific ---
 GA_POP_SIZE = 150
