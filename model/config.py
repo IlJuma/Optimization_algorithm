@@ -66,7 +66,7 @@ MAX_NEIGHBORS_PER_FRAGMENT = 50  # Maximum number of best (lowest-cost) feasible
 
 # --- Shared Evaluation Budget ---
 # Every algorithm MUST stop when it hits one of these limits
-MAX_EVALUATIONS = 10_000
+MAX_EVALUATIONS = 15_000
 MAX_TIME_SEC = 60.0
 
 # --- Random Search Specific ---
@@ -79,7 +79,7 @@ SA_MIN_TEMP = 1e-3
 SA_NEIGHBORHOOD = "swap"
 
 # Optimization Simulated Annealing Specific
-SWEEP_OPT = False # this was for the comparison, it will "break" the comparison graph
+SWEEP_OPT = True # this was for the comparison, it will "break" the comparison graph
 OPT_SA_INITIAL_TEMP =[1.0, 10.0, 20.0]
 OPT_SA_COOLING_RATE = [0.95, 0.99, 0.999]
 OPT_SA_MIN_TEMP = 1e-12
@@ -92,3 +92,11 @@ GA_NUM_GENERATIONS = 300
 GA_MUTATION_RATE = 0.05
 GA_CROSSOVER_RATE = 0.8
 GA_ELITISM = 3
+GA_VERBOSE = False
+
+# Optimization Genetic Algorithm Specific
+GA_SWEEP_OPT = True
+OPT_GA_POP_SIZE = [100, 150, 200]
+OPT_GA_NUM_GENERATIONS = [300]
+OPT_GA_MUTATION_RATE = [0.01,0.05, 0.1]
+OPT_GA_CROSSOVER_RATE = [0.8]

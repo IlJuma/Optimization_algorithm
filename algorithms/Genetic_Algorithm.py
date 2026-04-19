@@ -20,8 +20,6 @@ from model.config import (
     GA_ELITISM,
 )
 
-print("Import done")
-
 
 # =========================
 # GA PARAMETERS
@@ -120,10 +118,8 @@ def mutate(solution, rng):
 # MAIN GA FUNCTION
 # =========================
 
-print("Calculating GA function")
 
-
-def optimize(problem=None, config=None, rng=None):
+def optimize(problem=None, config=None, rng=None, verbose=None):
     if problem is None:
         fragments = load_fragments("data/fasta/fragments.fasta")
         problem = AssemblyProblem(fragments)
@@ -138,6 +134,8 @@ def optimize(problem=None, config=None, rng=None):
     elitism = getattr(config, "GA_ELITISM", ELITISM) if config is not None else ELITISM
     max_evaluations = getattr(config, "MAX_EVALUATIONS", MAX_EVALUATIONS) if config is not None else MAX_EVALUATIONS
     max_time_sec = getattr(config, "MAX_TIME_SEC", MAX_TIME_SEC) if config is not None else MAX_TIME_SEC
+    if verbose is None:
+        verbose = getattr(config, "GA_VERBOSE", True) if config is not None else True
 
     start_time = time.time()
     evaluations = 0
@@ -235,7 +233,7 @@ def optimize(problem=None, config=None, rng=None):
             population[-elitism:] = elites
 
         # Logging
-        if (gen + 1) % 20 == 0 or gen == 0:
+        if verbose and ((gen + 1) % 20 == 0 or gen == 0):
             print(f"Generation {gen + 1}/{num_generations} | Best cost: {best_score:.2f}")
 
         if evaluations >= max_evaluations:
@@ -270,8 +268,8 @@ def optimize(problem=None, config=None, rng=None):
     }
 
 
-def genetic_algorithm(problem=None, config=None, rng=None):
-    return optimize(problem=problem, config=config, rng=rng)
+def genetic_algorithm(problem=None, config=None, rng=None, verbose=None):
+    return optimize(problem=problem, config=config, rng=rng, verbose=verbose)
 
 
 # =========================
