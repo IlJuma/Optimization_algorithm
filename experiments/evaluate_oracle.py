@@ -8,41 +8,54 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from model.data_loader_frag import load_fragments
 from model.problem import AssemblyProblem
 from model import config
+from algorithms.oracle_solution import oracle_solution
+
 
 def main():
     print("Evaluating the Oracle (True Genomic Sequence)...")
-    
+
     fragments = load_fragments()
-    problem = AssemblyProblem(fragments=fragments, min_overlap=config.MIN_OVERLAP)
+    problem = AssemblyProblem(
+        fragments=fragments,
+        min_overlap=config.MIN_OVERLAP,
+        break_factor=config.BREAK_FACTOR,
+        partial_overlap_factor=config.PARTIAL_OVERLAP_FACTOR,
+        dense_threshold=config.DENSE_THRESHOLD,
+        max_neighbors_per_fragment=config.MAX_NEIGHBORS_PER_FRAGMENT,
+    )
 
-    # The Oracle sequence is exactly the fragments sorted by their actual starting position
-    sorted_fragments = sorted(fragments, key=lambda f: f.frag_start)
-    oracle_solution = [f.fragment_id for f in sorted_fragments]
-
-    # Evaluate the perfect sequence
-    oracle_cost = problem.evaluate(oracle_solution)
-    oracle_contigs = problem.count_contigs(oracle_solution)
-    oracle_overlap = problem.total_overlap(oracle_solution)
-    oracle_breaks = problem.count_breaks(oracle_solution)
+    result = oracle_solution(problem=problem, fragments=fragments)
 
     oracle_data = {
-        "method": "Oracle (True Genome)",
-        "best_score": oracle_cost,
-        "contigs": oracle_contigs,
-        "overlap": oracle_overlap,
-        "breaks": oracle_breaks
+        "method": result["method"],
+        "best_solution": result["best_solution"],
+        "best_score": result["best_score"],
+        "history": result["history"],
+        "evaluations": result["evaluations"],
+        "runtime_sec": result["runtime_sec"],
+        "best_breaks": result["best_breaks"],
+        "best_contigs": result["best_contigs"],
+        "best_total_overlap": result["best_total_overlap"],
+        "breaks": result["breaks"],
+        "contigs": result["contigs"],
+        "total_overlap": result["total_overlap"],
     }
 
     os.makedirs("reports", exist_ok=True)
-    with open("reports/oracle_baseline.json", "w") as f:
+    out_path = "reports/oracle_baseline.json"
+    with open(out_path, "w") as f:
         json.dump(oracle_data, f, indent=4)
 
     print("\n--- ORACLE METRICS ---")
-    print(f"Cost:    {oracle_cost:.2f}")
-    print(f"Contigs: {oracle_contigs}")
-    print(f"Overlap: {oracle_overlap}")
-    print(f"Breaks:  {oracle_breaks}")
-    print("\nSaved to reports/oracle_baseline.json")
+    print(f"Cost:    {oracle_data['best_score']:.2f}")
+    print(f"Contigs: {oracle_data['best_contigs']}")
+    print(f"Overlap: {oracle_data['best_total_overlap']}")
+    print(f"Breaks:  {oracle_data['best_breaks']}")
+    print("\nOracle solution uses oriented fragment IDs:")
+    print("  <fragment_id>_F = stored fragment sequence from fragments.fasta")
+    print("  <fragment_id>_R = reverse complement of stored fragment sequence")
+    print(f"\nSaved to {out_path}")
+
 
 if __name__ == "__main__":
     main()

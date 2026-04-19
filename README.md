@@ -1,59 +1,180 @@
-# Optimization Algorithm – Genome Simulation Pipeline
+# Optimization of DNA Fragment Assembly
 
-This project simulates a simplified DNA sequencing workflow:
+## 1. Project Description
 
-1. **Genome generation**
+This project formulates **DNA fragment assembly as a combinatorial optimization problem** and evaluates bio-inspired algorithms to reconstruct a genome from unordered fragments.
 
-   * Random DNA sequence (A/C/G/T only)
-   * GC content variation across windows
+DNA is represented as a sequence over the alphabet {A, C, G, T}. We simulate a genome and generate multiple copies, which are randomly fragmented. Due to the fragmentation and recovery process, the resulting dataset has the following properties:
 
-2. **Fragmentation**
+- fragments partially overlap  
+- genome coverage is incomplete (gaps may exist)  
+- redundancy occurs due to multiple copies  
+- fragment orientation is unknown (forward or reverse complement)
 
-   * Random cut-site model (Poisson process)
-   * Size selection (Illumina-like insert sizes)
-   * Random recovery of fragments
+The goal is to reconstruct the original chromosome from an **unordered set of fragments with unknown orientation**.
 
-3. **Sequencing simulation**
+---
 
-   * Paired-end reads
-   * Phred-based error model
-   * Provenance tracking (true genomic coordinates)
+### Mathematical formulation
 
-4. **Oracle coverage evaluation**
+Let  
+V = {F₁, F₂, …, Fₙ}  
+be the set of fragments.
 
-   * Ground-truth coordinate reconstruction from fragments and reads
-   * Per-base coverage calculation across the reference genome
-   * Gap and contig detection (uncovered vs covered regions)
-   * Summary statistics (coverage depth, breadth, extremes)
-   * Export of coverage tracks, intervals (TSV), and diagnostic plots
+A solution is a permutation with orientation:  
+π = (π₁, π₂, …, πₙ),   πₖ ∈ {Fᶠᵢ, Fʳᵢ}
 
-## Structure
+Each fragment is used exactly once, in either forward or reverse orientation.
 
-```
-pipeline/   # simulation scripts
+Fragments are connected using suffix-prefix overlap:  
+overlap(i, j)
 
-- `pipeline/` – generation and validation of simulated genomic data
-- `model/` – data loading, scoring, constraints, and problem representation
-- `algorithms/` – random search, simulated annealing, and genetic algorithm
-- `experiments/` – optimization runs and result analysis
-- `data/fasta/` - generated sequences (ignored)
-- `data/fastq/` - generated reads (ignored)
-- `reports/` - simulation reports (ignored)
-```
+A minimum overlap threshold is enforced:  
+overlap(i, j) ≥ o_min   (default: 20)
 
-## Usage
+If not satisfied → **break (new contig)**.
 
-Run the scripts in order; the first script initializes all required directories.
+---
 
-```
-python pipeline/1_generate_chromosome.py
-python pipeline/2_fragment_chromosome.py
-python pipeline/3_simulate_illumina.py
-python pipeline/4_oracle_coverage_evaluation.py
-```
+### Cost function
+
+For two fragments i, j, let:  
+ℓᵢⱼ = min(|i|, |j|)  
+P = γ · ℓᵢⱼ  
+
+The pairwise cost is:
+
+c(i, j) =  
+    ℓᵢⱼ − overlap(i, j)          if overlap ≥ o_min  
+    P − β · overlap(i, j)        if 0 < overlap < o_min  
+    P                            if overlap = 0  
+
+with:  
+- γ = 2 (break penalty)  
+- β = 1 (weak overlap scaling)  
+
+The total cost:  
+f(π) = Σ c(πₖ, πₖ₊₁)
+
+Goal:  
+minimize f(π)
+
+Search space:  
+|S| = n! · 2ⁿ
+
+---
+
+### Optimization methods
+
+We compare:
+
+- Random Search (baseline)  
+- Simulated Annealing (local search with probabilistic acceptance)  
+- Genetic Algorithm (population-based global search)  
+
+All methods are evaluated under a fixed budget of **15,000 evaluations**.
+
+---
+
+## 2. Project Structure
+
+Optimisation_and_Bio-inspired_algorithms/  
+├── algorithms/  
+├── experiments/  
+├── model/  
+├── pipeline/  
+├── data/  
+│   ├── fasta/    (generated, ignored)  
+│   ├── fastq/    (optional, ignored)  
+├── reports/      (generated, ignored)  
+├── README.md  
+└── requirements.txt  
+
+---
+
+## 3. Modules Overview
+
+### pipeline/
+Simulation of genome and fragment generation.
+
+- generate_chromosome.py — generate synthetic genome  
+- fragment_chromosome.py — fragment genome and randomize orientation  
+- oracle_coverage_evaluation.py — evaluate ground-truth coverage  
+- simulate_illumina.py (optional, not used in final model)  
+
+---
+
+### model/
+Core problem definition.
+
+- config.py — parameters (overlap threshold, penalties, experiment setup)  
+- data_loader_frag.py — load fragments and generate orientations  
+- problem.py — cost function and evaluation logic  
+
+---
+
+### algorithms/
+Optimization methods.
+
+- random_search.py — baseline random sampling  
+- simulated_annealing.py — temperature-based local search  
+- Genetic_Algorithm.py — evolutionary optimization  
+- oracle_solution.py — ground-truth ordering (benchmark)  
+
+---
+
+### experiments/
+Running and analyzing experiments.
+
+- run_experiments.py — main experiment pipeline  
+- analyze_results.py — comparison plots  
+- analyze_random_search.py — RS diagnostics  
+- analyze_simulated_annealing.py — SA diagnostics  
+- Genetic_Algorithm_optimization.py — GA hyperparameter tuning  
+- run_grid_search.py — parameter sweeps  
+- evaluate_oracle.py — evaluate oracle solution  
+
+---
+
+## 4. Running the Project
+
+### Setup environment
+
+python -m venv .venv  
+source .venv/bin/activate   (Linux/macOS)  
+.venv\Scripts\activate      (Windows)  
+
+pip install -r requirements.txt  
+
+---
+
+### Step 1 — Generate fragments
+
+python pipeline/generate_chromosome.py  
+python pipeline/fragment_chromosome.py  
+
+---
+
+### Step 2 — Run optimization experiments
+
+python experiments/run_experiments.py  
+
+---
+
+### Step 3 — Analyze results
+
+python experiments/analyze_results.py  
+
+---
+
+### Optional analysis
+
+python experiments/analyze_random_search.py  
+python experiments/analyze_simulated_annealing.py  
+python experiments/Genetic_Algorithm_optimization.py  
+
+---
 
 ## Notes
 
-* Output folders (`data/fasta/`, `data/fastq/`, `reports/`) are created automatically
-* All outputs are excluded from version control
-* Designed for testing genome reconstruction and assembly accuracy
+- Output data is stored in data/ and reports/ and is excluded from version control
