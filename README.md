@@ -78,17 +78,19 @@ All methods are evaluated under a fixed budget of **15,000 evaluations**.
 
 ## 2. Project Structure
 
-Optimisation_and_Bio-inspired_algorithms/  
-├── algorithms/  
-├── experiments/  
-├── model/  
-├── pipeline/  
-├── data/  
-│   ├── fasta/    (generated, ignored)  
-│   ├── fastq/    (optional, ignored)  
-├── reports/      (generated, ignored)  
-├── README.md  
-└── requirements.txt  
+```text
+Optimisation_and_Bio-inspired_algorithms/
+├── algorithms/
+├── experiments/
+├── model/
+├── pipeline/
+├── data/
+│   ├── fasta/    (generated, ignored)
+│   ├── fastq/    (optional, ignored)
+├── reports/      (generated, ignored)
+├── README.md
+└── requirements.txt
+```
 
 ---
 
@@ -140,41 +142,43 @@ Running and analyzing experiments.
 
 ### Setup environment
 
-python -m venv .venv  
-source .venv/bin/activate   (Linux/macOS)  
-.venv\Scripts\activate      (Windows)  
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # Linux/macOS/WSL
 
-pip install -r requirements.txt  
-
----
+pip install -r requirements.txt
+```
 
 ### Step 1 — Generate fragments
 
-python pipeline/generate_chromosome.py  
-python pipeline/fragment_chromosome.py  
-
----
+```bash
+python3 -m pipeline.generate_chromosome
+python3 -m pipeline.fragment_chromosome
+```
 
 ### Step 2 — Run optimization experiments
 
-python experiments/run_experiments.py  
-
----
+```bash
+python3 -m experiments.run_experiments
+```
 
 ### Step 3 — Analyze results
 
-python experiments/analyze_results.py  
-
----
+```bash
+python3 -m experiments.analyze_results
+```
 
 ### Optional analysis
 
-python experiments/analyze_random_search.py  
-python experiments/analyze_simulated_annealing.py  
-python experiments/Genetic_Algorithm_optimization.py  
+```bash
+python3 -m experiments.analyze_random_search
+python3 -m experiments.analyze_simulated_annealing
+python3 -m experiments.Genetic_Algorithm_optimization
+``` 
 
 ---
 
 ## Notes
 
 - Output data is stored in data/ and reports/ and is excluded from version control
+- Commands for running the project are written for Linux/WSL environments using `python3`.
