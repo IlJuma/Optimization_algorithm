@@ -3,10 +3,10 @@
 #
 
 # Global random seed (we currently use 2 different names across the project)
-RANDOM_SEED = SEED = 123
+RANDOM_SEED = SEED = 666
 
 # --- generate_chromosome ---
-LENGTH = 5000                       # Total sequence length
+LENGTH = 20_000                       # Total sequence length
     # LENGTH = 50_000 # Stage 3 scaling for final experiments, needs finetuning
 MEAN_GC_CONTENT = 0.50              # Mean GC across the whole sequence
 GC_WINDOW_SIZE = int(LENGTH / 20)   # GC is assigned per window
