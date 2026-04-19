@@ -86,6 +86,7 @@ def plot_bar_metrics(results):
     ax1.set_ylabel("Cost")
     ax1.grid(axis='y', linestyle='--', alpha=0.7)
     # Automatically rotate labels if they start overlapping (helpful now that we added Oracle)
+    ax1.set_xticks(range(len(methods)))
     ax1.set_xticklabels(methods, rotation=15, ha="right") 
     for bar in bars1:
         ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
@@ -96,6 +97,7 @@ def plot_bar_metrics(results):
     ax2.set_title("Remaining Contig Breaks", fontweight='bold')
     ax2.set_ylabel("Number of Breaks")
     ax2.grid(axis='y', linestyle='--', alpha=0.7)
+    ax2.set_xticks(range(len(methods)))
     ax2.set_xticklabels(methods, rotation=15, ha="right")
     for bar in bars2:
         ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
@@ -106,6 +108,7 @@ def plot_bar_metrics(results):
     ax3.set_title("Execution Time", fontweight='bold')
     ax3.set_ylabel("Seconds")
     ax3.grid(axis='y', linestyle='--', alpha=0.7)
+    ax3.set_xticks(range(len(methods)))
     ax3.set_xticklabels(methods, rotation=15, ha="right")
     for bar in bars3:
         ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
