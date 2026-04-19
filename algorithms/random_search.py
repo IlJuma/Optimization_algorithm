@@ -42,11 +42,16 @@ def optimize(problem=None, config=None, rng=None):
     best_score = float("inf")
     history = []
     current_cost_history = []
+    contigs_history = []
+    overlap_history = []
     evaluations = 0
 
     # extract budgets from config, falling back to defaults if missing
     max_evals = getattr(config, "MAX_EVALUATIONS", 10000) if config is not None else 10000
     max_time_sec = getattr(config, "MAX_TIME_SEC", 60) if config is not None else 60
+
+    current_best_contigs = 0
+    current_best_overlap = 0
 
     while evaluations < max_evals:
         # check time limit
@@ -64,10 +69,14 @@ def optimize(problem=None, config=None, rng=None):
         if score < best_score:
             best_score = score
             best_solution = current_solution.copy()
+            current_best_contigs = problem.count_contigs(best_solution)
+            current_best_overlap = problem.total_overlap(best_solution)
 
         # track history
         history.append(best_score)
         current_cost_history.append(score)
+        contigs_history.append(current_best_contigs)
+        overlap_history.append(current_best_overlap)
 
     runtime = time.time() - start_time
 
@@ -81,6 +90,8 @@ def optimize(problem=None, config=None, rng=None):
         "best_score": best_score,
         "history": history,
         "current_cost_history": current_cost_history,
+        "contigs_history": contigs_history,
+        "overlap_history": overlap_history,
         "evaluations": evaluations,
         "runtime_sec": runtime,
         "best_breaks": final_breaks,

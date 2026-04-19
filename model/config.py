@@ -66,11 +66,11 @@ MAX_NEIGHBORS_PER_FRAGMENT = 50  # Maximum number of best (lowest-cost) feasible
 
 # --- Shared Evaluation Budget ---
 # Every algorithm MUST stop when it hits one of these limits
-MAX_EVALUATIONS = 10_000
+MAX_EVALUATIONS = 15_000
 MAX_TIME_SEC = 60.0
 
 # --- Random Search Specific ---
-RS_NUM_SAMPLES = 10_000
+RS_NUM_SAMPLES = 15_000
 
 # --- Simulated Annealing Specific ---
 SA_INITIAL_TEMP = 1.0
@@ -87,11 +87,11 @@ OPT_SA_NEIGHBORHOOD = "swap"
 
 
 # --- Genetic Algorithm Specific ---
-GA_POP_SIZE = 150
-GA_NUM_GENERATIONS = 300
-GA_MUTATION_RATE = 0.05
+GA_POP_SIZE = 30
+GA_NUM_GENERATIONS = 500
+GA_MUTATION_RATE = 0.5
 GA_CROSSOVER_RATE = 0.8
-GA_ELITISM = 3
+GA_ELITISM = 2
 
 
 # GA OPTIMIZATION (HYPERPARAMETER SEARCH)

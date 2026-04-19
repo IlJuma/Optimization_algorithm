@@ -158,10 +158,16 @@ def optimize(
     best_cost = current_cost
 
     # Tracking
-    cost_history = [current_cost]
+    cost_history = [best_cost]
     temperature_history = [T0]
     acceptance_rate_history = []
     current_cost_history = [current_cost]
+    
+    current_best_contigs = problem.count_contigs(best_solution)
+    current_best_overlap = problem.total_overlap(best_solution)
+    contigs_history = [current_best_contigs]
+    overlap_history = [current_best_overlap]
+    
     evaluations = 1
 
     if pair_indices is None:
@@ -193,12 +199,16 @@ def optimize(
         if current_cost < best_cost:
             best_solution = current_solution.copy()
             best_cost = current_cost
+            current_best_contigs = problem.count_contigs(best_solution)
+            current_best_overlap = problem.total_overlap(best_solution)
             if verbose and iteration % 1000 == 0:
                 print(f"Iter {iteration}: new best cost = {best_cost:.1f}")
 
         # Record history
-        cost_history.append(current_cost)
+        cost_history.append(best_cost)
         current_cost_history.append(current_cost)
+        contigs_history.append(current_best_contigs)
+        overlap_history.append(current_best_overlap)
         temperature_history.append(temperature)
         acceptance_rate_history.append(1.0 if accepted else 0.0)
 
@@ -258,6 +268,8 @@ def optimize(
         "history": cost_history,
         "cost_history": cost_history,
         "current_cost_history": current_cost_history,
+        "contigs_history": contigs_history,
+        "overlap_history": overlap_history,
         "temperature_history": temperature_history,
         "acceptance_rate_history": acceptance_rate_smoothed,
         "current_solution": current_solution,

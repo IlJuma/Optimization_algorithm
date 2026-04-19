@@ -1,318 +1,215 @@
-# -*- coding: utf-8 -*-
-"""
-Genetic Algorithm for DNA Fragment Assembly
-"""
-
 import time
 import numpy as np
-import matplotlib.pyplot as plt
-
+import random
 from model.data_loader_frag import load_fragments
 from model.problem import AssemblyProblem
-from model.config import (
-    SEED,
-    MAX_EVALUATIONS,
-    MAX_TIME_SEC,
-    GA_POP_SIZE,
-    GA_NUM_GENERATIONS,
-    GA_MUTATION_RATE,
-    GA_CROSSOVER_RATE,
-    GA_ELITISM,
-)
-
-print("Import done")
-
-
-# =========================
-# GA PARAMETERS
-# =========================
-
-POP_SIZE = GA_POP_SIZE
-CROSSOVER_RATE = GA_CROSSOVER_RATE
-MUTATION_RATE = GA_MUTATION_RATE
-NUM_GENERATIONS = GA_NUM_GENERATIONS
-ELITISM = GA_ELITISM
-
-
-# =========================
-# HELPER FUNCTIONS
-# =========================
 
 def base_fragment_id(oriented_fragment_id):
+    """Strips the _F or _R suffix to get the core fragment ID."""
     if oriented_fragment_id.endswith("_F") or oriented_fragment_id.endswith("_R"):
         return oriented_fragment_id[:-2]
     raise ValueError(f"Invalid oriented fragment id: {oriented_fragment_id}")
 
-
-def random_orientation(rng):
-    return rng.choice(["F", "R"])
-
-
 def build_random_oriented_solution(problem, rng):
-    """
-    Build a valid random solution:
-    - each base fragment is used exactly once
-    - orientation is chosen randomly for each fragment
-    """
     base_fragment_ids = problem.base_fragment_ids.copy()
     rng.shuffle(base_fragment_ids)
-
-    solution = []
-    for fragment_id in base_fragment_ids:
-        solution.append(f"{fragment_id}_{random_orientation(rng)}")
-
-    return solution
-
+    return [f"{fid}_{rng.choice(['F', 'R'])}" for fid in base_fragment_ids]
 
 def calculate_fitness(solution, problem):
     return problem.evaluate(solution)
 
-
-def crossover(parent1, parent2, rng):
-    """
-    Order-preserving crossover on base fragments, with orientation inherited
-    from the parent contributing the chosen occurrence.
-    """
-    if rng.random() >= CROSSOVER_RATE:
+def crossover(parent1, parent2, rng, crossover_rate):
+    """Oriented Order Crossover (OX1): Preserves both sequence order AND orientation."""
+    if rng.random() > crossover_rate:
         return parent1.copy(), parent2.copy()
-
+        
     n = len(parent1)
-    point = rng.integers(1, n)
+    
+    def ox1(p1, p2):
+        start, end = np.sort(rng.choice(n, 2, replace=False))
+        child = [None] * n
+        
+        # Copy the swath from parent 1 (keeps parent 1's orientation)
+        child[start:end+1] = p1[start:end+1]
+        
+        # Track which base fragments have been used
+        used_bases = {base_fragment_id(x) for x in child[start:end+1]}
+        
+        # Filter parent 2 for unused base fragments (keeps parent 2's orientation)
+        p2_filtered = [x for x in p2 if base_fragment_id(x) not in used_bases]
+        
+        # Fill remaining slots
+        p2_idx = 0
+        for i in range(n):
+            if child[i] is None:
+                child[i] = p2_filtered[p2_idx]
+                p2_idx += 1
+        return child
 
-    prefix1 = parent1[:point]
-    prefix2 = parent2[:point]
+    return ox1(parent1, parent2), ox1(parent2, parent1)
 
-    used1 = {base_fragment_id(x) for x in prefix1}
-    used2 = {base_fragment_id(x) for x in prefix2}
-
-    child1 = prefix1 + [x for x in parent2 if base_fragment_id(x) not in used1]
-    child2 = prefix2 + [x for x in parent1 if base_fragment_id(x) not in used2]
-
-    return child1, child2
-
-
-def mutate(solution, rng):
-    """
-    Mutation uses two operators:
-    - swap two fragments
-    - flip orientation of a fragment
-    """
+def mutate(solution, rng, mutation_rate):
+    """Oriented Mutation: Sequence Reversal AND Orientation Flipping."""
     mutated = solution.copy()
-    n = len(mutated)
-
-    for i in range(n):
-        if rng.random() < MUTATION_RATE:
-            if rng.random() < 0.5:
-                j = rng.integers(0, n - 1)
-                if j >= i:
-                    j += 1
-                mutated[i], mutated[j] = mutated[j], mutated[i]
-            else:
-                if mutated[i].endswith("_F"):
-                    mutated[i] = mutated[i][:-2] + "_R"
+    
+    if rng.random() < mutation_rate:
+        if rng.random() < 0.5:
+            # Move 1: Biological Inversion (Reverse chunk AND flip orientations)
+            n = len(solution)
+            i, j = rng.choice(n, 2, replace=False)
+            if i > j:
+                i, j = j, i
+            
+            chunk = mutated[i:j+1][::-1]
+            flipped_chunk = []
+            for frag in chunk:
+                if frag.endswith("_F"):
+                    flipped_chunk.append(frag[:-2] + "_R")
                 else:
-                    mutated[i] = mutated[i][:-2] + "_F"
-
+                    flipped_chunk.append(frag[:-2] + "_F")
+            mutated[i:j+1] = flipped_chunk
+        else:
+            # Move 2: Point Mutation (Flip one single fragment's orientation)
+            idx = rng.integers(0, len(mutated))
+            frag = mutated[idx]
+            if frag.endswith("_F"):
+                mutated[idx] = frag[:-2] + "_R"
+            else:
+                mutated[idx] = frag[:-2] + "_F"
+                
     return mutated
 
-
-# =========================
-# MAIN GA FUNCTION
-# =========================
-
-print("Calculating GA function")
-
-
-def optimize(problem=None, config=None, rng=None):
+def optimize(problem=None, config=None, shared_rng=None):
+    """Standardized wrapper for the Experiment Runner."""
     if problem is None:
-        fragments = load_fragments("data/fasta/fragments.fasta")
+        fragments = load_fragments()
         problem = AssemblyProblem(fragments)
 
-    if rng is None:
-        rng = np.random.default_rng(SEED)
-
-    pop_size = getattr(config, "GA_POP_SIZE", POP_SIZE) if config is not None else POP_SIZE
-    crossover_rate = getattr(config, "GA_CROSSOVER_RATE", CROSSOVER_RATE) if config is not None else CROSSOVER_RATE
-    mutation_rate = getattr(config, "GA_MUTATION_RATE", MUTATION_RATE) if config is not None else MUTATION_RATE
-    num_generations = getattr(config, "GA_NUM_GENERATIONS", NUM_GENERATIONS) if config is not None else NUM_GENERATIONS
-    elitism = getattr(config, "GA_ELITISM", ELITISM) if config is not None else ELITISM
-    max_evaluations = getattr(config, "MAX_EVALUATIONS", MAX_EVALUATIONS) if config is not None else MAX_EVALUATIONS
-    max_time_sec = getattr(config, "MAX_TIME_SEC", MAX_TIME_SEC) if config is not None else MAX_TIME_SEC
+    # Safely convert standard Python random to numpy random
+    if isinstance(shared_rng, random.Random):
+        numpy_seed = shared_rng.randint(0, 2**32 - 1)
+        rng = np.random.default_rng(numpy_seed)
+    elif shared_rng is None:
+        rng = np.random.default_rng(42)
+    else:
+        rng = shared_rng
 
     start_time = time.time()
-    evaluations = 0
+    
+    # Extract config parameters
+    pop_size = getattr(config, 'GA_POP_SIZE', 50)
+    crossover_rate = getattr(config, 'GA_CROSSOVER_RATE', 0.8)
+    mutation_rate = getattr(config, 'GA_MUTATION_RATE', 0.2) 
+    elitism = getattr(config, 'GA_ELITISM', 2)
+    max_evals = getattr(config, 'MAX_EVALUATIONS', 10000)
+    max_time_sec = getattr(config, 'MAX_TIME_SEC', 60)
 
+    # Initialize Population with proper F/R orientations
     population = [build_random_oriented_solution(problem, rng) for _ in range(pop_size)]
+    fitness_scores = [] # Track scores to prevent duplicate evaluations
 
     best_solution = None
-    best_score = float("inf")
+    best_score = float('inf')
 
     history = []
     current_cost_history = []
     contigs_history = []
     overlap_history = []
+    
+    evaluations = 0
 
-    for gen in range(num_generations):
-        if evaluations >= max_evaluations:
+    # 1. Initial Evaluation of the starting population
+    for sol in population:
+        if evaluations >= max_evals or time.time() - start_time > max_time_sec:
             break
-        if time.time() - start_time > max_time_sec:
-            break
+        score = calculate_fitness(sol, problem)
+        fitness_scores.append(score)
+        current_cost_history.append(score) 
+        
+        if score < best_score:
+            best_score = score
+            best_solution = sol.copy()
 
-        # Evaluate population
-        fitness_scores = []
-        for sol in population:
-            score = calculate_fitness(sol, problem)
-            fitness_scores.append(score)
-            evaluations += 1
+        history.append(best_score)
+        contigs_history.append(problem.count_contigs(best_solution))
+        overlap_history.append(problem.total_overlap(best_solution))
+        evaluations += 1
 
-            if evaluations >= max_evaluations:
-                break
-            if time.time() - start_time > max_time_sec:
-                break
+    # 2. Main Generation Loop
+    while evaluations < max_evals and (time.time() - start_time) <= max_time_sec:
+            
+        fitness_array = np.array(fitness_scores)
 
-        fitness_scores = np.array(fitness_scores)
-
-        if len(fitness_scores) == 0:
-            break
-
-        # Trim population if time/eval limit interrupted evaluation
-        population = population[:len(fitness_scores)]
-
-        gen_best_score = float(fitness_scores.min())
-        history.append(gen_best_score)
-        current_cost_history.append(gen_best_score)
-
-        best_idx = int(np.argmin(fitness_scores))
-        best_sol = population[best_idx]
-
-        contigs_history.append(problem.count_contigs(best_sol))
-        overlap_history.append(problem.total_overlap(best_sol))
-
-        if gen_best_score < best_score:
-            best_score = gen_best_score
-            best_solution = best_sol.copy()
-
-        # Selection
-        inv_fitness = 1 / (fitness_scores + 1e-6)
-        probs = inv_fitness / inv_fitness.sum()
-        selected_indices = rng.choice(
-            range(len(population)),
-            size=len(population),
-            replace=True,
-            p=probs,
-        )
+        # Selection (Tournament)
+        selected_indices = []
+        tournament_size = 3
+        for _ in range(pop_size):
+            fighters = rng.choice(range(len(population)), size=tournament_size, replace=False)
+            winner = fighters[np.argmin(fitness_array[fighters])]
+            selected_indices.append(winner)
 
         # Crossover
         offspring = []
-        for i in range(0, len(population) - 1, 2):
+        for i in range(0, pop_size - 1, 2):
             p1 = population[selected_indices[i]]
-            p2 = population[selected_indices[i + 1]]
-
-            old_rate = CROSSOVER_RATE
-            globals()["CROSSOVER_RATE"] = crossover_rate
-            c1, c2 = crossover(p1, p2, rng)
-            globals()["CROSSOVER_RATE"] = old_rate
-
+            p2 = population[selected_indices[i+1]]
+            c1, c2 = crossover(p1, p2, rng, crossover_rate)
             offspring.extend([c1, c2])
 
+        if len(offspring) < pop_size:
+            offspring.append(population[selected_indices[-1]].copy())
+
         # Mutation
-        old_mutation_rate = MUTATION_RATE
-        globals()["MUTATION_RATE"] = mutation_rate
-        offspring = [mutate(child, rng) for child in offspring]
-        globals()["MUTATION_RATE"] = old_mutation_rate
+        offspring = [mutate(child, rng, mutation_rate) for child in offspring]
 
-        # Survivor selection
-        combined = population + offspring
-        combined_scores = [calculate_fitness(sol, problem) for sol in combined]
-        evaluations += len(combined)
+        # Evaluate ONLY the new offspring (Massive speed boost!)
+        offspring_scores = []
+        for sol in offspring:
+            if evaluations >= max_evals or time.time() - start_time > max_time_sec:
+                break
+            score = calculate_fitness(sol, problem)
+            offspring_scores.append(score)
+            current_cost_history.append(score)
+            
+            if score < best_score:
+                best_score = score
+                best_solution = sol.copy()
 
+            history.append(best_score)
+            contigs_history.append(problem.count_contigs(best_solution))
+            overlap_history.append(problem.total_overlap(best_solution))
+            evaluations += 1
+
+        if len(offspring_scores) == 0:
+            break
+
+        # Survivor selection & Elitism (Combine parents and ONLY the evaluated offspring)
+        combined = population + offspring[:len(offspring_scores)]
+        combined_scores = fitness_scores + offspring_scores
+        
         ranked = sorted(zip(combined, combined_scores), key=lambda x: x[1])
         population = [sol for sol, _ in ranked[:pop_size]]
-
-        # Elitism
+        fitness_scores = [score for _, score in ranked[:pop_size]]
+        
         if elitism > 0:
             elites = [sol for sol, _ in ranked[:elitism]]
+            elite_scores = [score for _, score in ranked[:elitism]]
+            
             population[-elitism:] = elites
-
-        # Logging
-        if (gen + 1) % 20 == 0 or gen == 0:
-            print(f"Generation {gen + 1}/{num_generations} | Best cost: {best_score:.2f}")
-
-        if evaluations >= max_evaluations:
-            break
-        if time.time() - start_time > max_time_sec:
-            break
+            fitness_scores[-elitism:] = elite_scores
 
     runtime = time.time() - start_time
-
-    final_breaks = problem.count_breaks(best_solution) if best_solution else 0
-    final_contigs = problem.count_contigs(best_solution) if best_solution else 0
-    final_total_overlap = problem.total_overlap(best_solution) if best_solution else 0
+    final_breaks = problem.count_breaks(best_solution)
 
     return {
         "method": "Genetic Algorithm",
         "best_solution": best_solution,
-        "best_score": best_score,
-        "history": history,
-        "current_cost_history": current_cost_history,
-        "contigs_history": contigs_history,
-        "overlap_history": overlap_history,
-        "evaluations": evaluations,
-        "runtime_sec": runtime,
-        "population_size": pop_size,
-        "num_generations": num_generations,
-        "best_breaks": final_breaks,
-        "best_contigs": final_contigs,
-        "best_total_overlap": final_total_overlap,
-        "breaks": final_breaks,
-        "contigs": final_contigs,
-        "total_overlap": final_total_overlap,
+        "best_score": float(best_score),
+        "history": [float(x) for x in history],                           
+        "current_cost_history": [float(x) for x in current_cost_history], 
+        "contigs_history": [int(x) for x in contigs_history],             
+        "overlap_history": [int(x) for x in overlap_history],             
+        "evaluations": int(evaluations),
+        "runtime_sec": float(runtime),
+        "breaks": int(final_breaks)
     }
-
-
-def genetic_algorithm(problem=None, config=None, rng=None):
-    return optimize(problem=problem, config=config, rng=rng)
-
-
-# =========================
-# RUN SCRIPT
-# =========================
-
-if __name__ == "__main__":
-    print("Loading fragments...")
-    fragments = load_fragments("data/fasta/fragments.fasta")
-    problem = AssemblyProblem(fragments)
-
-    print("Running Genetic Algorithm...")
-    result = optimize(problem=problem)
-
-    print("\n=== BEST SOLUTION FOUND ===")
-    print(f"Best score (total cost): {result['best_score']:.2f}")
-    print(f"Number of fragments: {problem.n_fragments}")
-    print(f"Fragment IDs order: {result['best_solution']}")
-
-    # 1. Cost convergence
-    plt.figure()
-    plt.plot(result["history"])
-    plt.xlabel("Generation")
-    plt.ylabel("Best cost")
-    plt.title("GA Convergence")
-    plt.grid(True)
-
-    # 2. Contigs vs iteration
-    plt.figure()
-    plt.plot(result["contigs_history"])
-    plt.xlabel("Generation")
-    plt.ylabel("Number of contigs")
-    plt.title("Contigs vs Iteration")
-    plt.grid(True)
-
-    # 3. Overlap vs iteration
-    plt.figure()
-    plt.plot(result["overlap_history"])
-    plt.xlabel("Generation")
-    plt.ylabel("Total overlap")
-    plt.title("Overlap vs Iteration")
-    plt.grid(True)
-
-    plt.show()

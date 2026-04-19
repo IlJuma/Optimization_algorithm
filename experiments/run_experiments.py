@@ -14,8 +14,8 @@ from model.problem import AssemblyProblem
 # Import the algorithms
 from algorithms.oracle_solution import oracle_solution
 from algorithms import random_search
-from algorithms import simulated_annealing # Uncomment when ready
-# from algorithms import genetic_algorithm   # Uncomment when ready
+from algorithms import simulated_annealing
+from algorithms import genetic_algorithm
 
 
 def _as_list(value):
@@ -109,9 +109,9 @@ def main():
     #print(f"Completed SA sweep with {len(sa_results)} runs.") # not needed
     
     # 5 Run Genetic Algorithm
-    # print("\nRunning Genetic Algorithm...")
-    # ga_result = genetic_algorithm.optimize(problem, config, rng)
-    # results.append(ga_result)
+    print("\nRunning Genetic Algorithm...")
+    ga_result = genetic_algorithm.optimize(problem, config, rng)
+    results.append(ga_result)
     
     # Save results to JSON for analyze_results.py script
     os.makedirs("reports", exist_ok=True)
